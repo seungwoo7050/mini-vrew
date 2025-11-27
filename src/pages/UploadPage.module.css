@@ -1,0 +1,82 @@
+.page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  color: #0b1220;
+}
+
+.form {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(20, 161, 200, 0.12);
+  background: #ffffff;
+  color: #0b1220;
+}
+
+.fileInput {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed rgba(20, 161, 200, 0.12);
+  background: #fafafa;
+}
+
+.submit {
+  align-self: flex-end;
+  padding: 8px 16px;
+  background: #14a1c8;
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+}
+
+.hint {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0b1220;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  color: #64748b;
+  margin-bottom: 12px;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 12px 0;
+}
+
+.placeholder {
+  color: #64748b;
+  margin-top: 18px;
+  text-align: center;
+  padding: 24px;
+  background: rgba(20, 161, 200, 0.02);
+  border-radius: 8px;
+}

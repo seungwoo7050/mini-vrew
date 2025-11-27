@@ -1,0 +1,71 @@
+.page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  color: #0b1220;
+}
+
+.player {
+  width: 100%;
+  max-width: 960px;
+  height: 540px;
+  background: #000000;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.meta {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0b1220;
+}
+
+.views {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.panel {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 1px 0 rgba(11, 18, 32, 0.04);
+  border: 1px solid rgba(20, 161, 200, 0.03);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+}
+
+.placeholder {
+  color: #64748b;
+  padding: 24px;
+  text-align: center;
+}
+
+.button {
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(20, 161, 200, 0.06);
+  color: #14a1c8;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
