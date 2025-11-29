@@ -7,4 +7,11 @@ describe('앱 셋업 smoke 테스트', () => {
     render(<App />);
     expect(screen.getByText(/vrew/i)).toBeInTheDocument();
   });
+
+  it('기본 라우팅이 동작해 목록 페이지 타이틀을 노출한다', () => {
+    render(<App />);
+    expect(
+      screen.getByRole('heading', { name: /비디오 목록/i })
+    ).toBeInTheDocument();
+  });
 });
