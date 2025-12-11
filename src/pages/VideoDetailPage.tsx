@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { useVideoQuery } from '@/features/videos/queries';
+import CaptionsPanel from '@/features/captions/CaptionsPanel';
 import styles from './VideoDetailPage.module.css';
 
 function VideoDetailPage() {
@@ -60,9 +61,7 @@ function VideoDetailPage() {
           </p>
         </article>
         <article className={styles.panel}>
-          <p className={styles.placeholder}>
-            자막 편집, 메타데이터, 상태 패널이 여기에 배치됩니다.
-          </p>
+          <CaptionsPanel videoId={videoId} videoTitle={video.title} />
         </article>
       </div>
     </section>

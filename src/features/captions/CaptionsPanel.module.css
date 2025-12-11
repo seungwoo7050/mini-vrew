@@ -1,0 +1,106 @@
+.panel {
+  display: grid;
+  gap: 12px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #000000;
+  font-weight: 500;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 8px;
+}
+
+.button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 0px;
+  background: #14a1c8;
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.list {
+  display: grid;
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: stretch;
+  padding: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #94a3b8;
+}
+
+.textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+  min-height: 46px;
+  resize: vertical;
+  grid-column: 1 / -1;
+}
+
+.smallButton {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 0px;
+  background: #fca5a5;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.status {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.error {
+  color: #fca5a5;
+  margin: 0;
+}
+
+.hint {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  /* .row is now flex column, no need for grid changes */
+}
