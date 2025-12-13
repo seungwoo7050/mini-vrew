@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Caption, VideoId } from '@/data/types';
 import { parseCaptions, sortCaptions, toSrt } from './format';
@@ -13,6 +13,13 @@ const EMPTY_CAPTION: Caption = {
   endMs: 2000,
   text: '',
 };
+
+function getPlaybackTimeMs(): number | null {
+  if (typeof document === 'undefined') return null;
+  const videoEl = document.querySelector('video');
+  if (!videoEl || !Number.isFinite(videoEl.currentTime)) return null;
+  return Math.round(videoEl.currentTime * 1000);
+}
 
 function nextId(prefix = 'cap'): string {
   const id =
@@ -44,6 +51,10 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const startRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const endRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const pendingFocusId = useRef<string | null>(null);
 
   const captionsQuery = useCaptionsQuery(videoId);
   const { data, isPending, isError } = captionsQuery;
@@ -56,6 +67,17 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
       setDrafts(populated.map((caption) => ({ ...caption })));
     }
   }, [data]);
+
+  useEffect(() => {
+    if (!pendingFocusId.current) return;
+    const textarea = textareaRefs.current[pendingFocusId.current];
+    if (textarea) {
+      textarea.focus();
+      const length = textarea.value.length;
+      textarea.setSelectionRange(length, length);
+    }
+    pendingFocusId.current = null;
+  }, [drafts]);
 
   const heading = useMemo(
     () => (drafts.length ? `자막 ${drafts.length}개` : '자막 없음'),
@@ -73,19 +95,43 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
     );
   };
 
-  const handleAdd = () => {
-    setDrafts((prev) => {
-      const last = sortCaptions(prev).at(-1);
-      const startMs = last ? last.endMs + 500 : 0;
-      const endMs = startMs + 2000;
-      return [...prev, { ...EMPTY_CAPTION, id: nextId(), startMs, endMs }];
+  const collectDraftsFromInputs = useCallback(() => {
+    return drafts.map((cap) => {
+      const startRaw =
+        startRefs.current[cap.id]?.value ?? formatTimecode(cap.startMs);
+      const endRaw =
+        endRefs.current[cap.id]?.value ?? formatTimecode(cap.endMs);
+      return {
+        ...cap,
+        startMs: parseTimecode(startRaw) ?? cap.startMs,
+        endMs: parseTimecode(endRaw) ?? cap.endMs,
+        text: textareaRefs.current[cap.id]?.value ?? cap.text,
+      };
     });
+  }, [drafts]);
+
+  const handleAdd = (anchorMs?: number | null) => {
+    const current = collectDraftsFromInputs();
+    const last = sortCaptions(current).at(-1);
+    const playhead = anchorMs ?? getPlaybackTimeMs();
+    const startMs = Number.isFinite(playhead)
+      ? Math.max(0, playhead as number)
+      : last
+        ? last.endMs + 100
+        : 0;
+    const endMs = startMs + 2000;
+    const id = nextId();
+    pendingFocusId.current = id;
+    setDrafts([...current, { ...EMPTY_CAPTION, id, startMs, endMs }]);
+    return id;
   };
 
   const handleDelete = (id: string) => {
-    setDrafts((prev) =>
-      prev.length === 1 ? prev : prev.filter((caption) => caption.id !== id)
-    );
+    setDrafts((prev) => {
+      if (prev.length === 1) return prev;
+      const current = collectDraftsFromInputs();
+      return current.filter((cap) => cap.id !== id);
+    });
   };
 
   const handleImportClick = () => {
@@ -115,7 +161,8 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
   };
 
   const handleExport = () => {
-    const safe = sanitizeCaptions(drafts);
+    const safe = sanitizeCaptions(collectDraftsFromInputs());
+    setDrafts(safe);
     if (!safe.length) {
       setError('내보낼 자막이 없습니다.');
       return;
@@ -133,7 +180,8 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
   const handleSave = async () => {
     setMessage(null);
     setError(null);
-    const prepared = sanitizeCaptions(drafts);
+    const prepared = sanitizeCaptions(collectDraftsFromInputs());
+    setDrafts(prepared);
     try {
       await saveMutation.mutateAsync(prepared);
       setMessage('자막이 저장되었습니다.');
@@ -173,7 +221,7 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
           <button
             className={styles.button}
             type="button"
-            onClick={handleAdd}
+            onClick={() => handleAdd()}
             disabled={saving}
           >
             추가
