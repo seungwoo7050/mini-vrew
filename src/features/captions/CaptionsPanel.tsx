@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, KeyboardEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Caption, VideoId } from '@/data/types';
@@ -201,6 +201,19 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
     setError(null);
   };
 
+  const handleTextareaKeyDown = (
+    event: KeyboardEvent<HTMLTextAreaElement>,
+    captionId: string
+  ) => {
+    if (event.key !== 'Enter') return;
+    if (event.nativeEvent.isComposing) return;
+    if (event.shiftKey) return;
+    event.preventDefault();
+    updateField(captionId, 'text', event.currentTarget.value);
+    const newId = handleAdd(getPlaybackTimeMs());
+    return newId;
+  };
+
   if (isPending) {
     return <p className={styles.status}>자막을 불러오는 중...</p>;
   }
@@ -276,18 +289,28 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
         {drafts.map((caption) => (
           <div key={caption.id} className={styles.row}>
             <input
+              key={`${caption.id}-start-${caption.startMs}`}
+              ref={(el) => {
+                startRefs.current[caption.id] = el;
+              }}
               className={styles.input}
               type="text"
-              defaultValue={formatTimecode(caption.startMs)}
+              value={formatTimecode(caption.startMs)}
               aria-label="시작 시간"
-              onBlur={(e) => updateField(caption.id, 'startMs', e.target.value)}
+              onChange={(e) =>
+                updateField(caption.id, 'startMs', e.target.value)
+              }
             />
             <input
+              key={`${caption.id}-end-${caption.endMs}`}
+              ref={(el) => {
+                endRefs.current[caption.id] = el;
+              }}
               className={styles.input}
               type="text"
-              defaultValue={formatTimecode(caption.endMs)}
+              value={formatTimecode(caption.endMs)}
               aria-label="종료 시간"
-              onBlur={(e) => updateField(caption.id, 'endMs', e.target.value)}
+              onChange={(e) => updateField(caption.id, 'endMs', e.target.value)}
             />
             <button
               className={styles.smallButton}
@@ -298,10 +321,15 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
               삭제
             </button>
             <textarea
+              key={`${caption.id}-text`}
+              ref={(el) => {
+                textareaRefs.current[caption.id] = el;
+              }}
               className={styles.textarea}
-              defaultValue={caption.text}
+              value={caption.text}
               aria-label="자막 내용"
-              onBlur={(e) => updateField(caption.id, 'text', e.target.value)}
+              onChange={(e) => updateField(caption.id, 'text', e.target.value)}
+              onKeyDown={(e) => handleTextareaKeyDown(e, caption.id)}
             />
           </div>
         ))}
