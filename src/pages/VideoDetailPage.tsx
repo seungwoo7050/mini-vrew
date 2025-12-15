@@ -60,7 +60,7 @@ function VideoDetailPage() {
             비디오/파형/트림/추천/내보내기 섹션이 여기에 배치됩니다.
           </p>
         </article>
-        <article className={styles.panel}>
+        <article className={`${styles.panel} ${styles.captionColumn}`}>
           <CaptionsPanel videoId={videoId} videoTitle={video.title} />
         </article>
       </div>

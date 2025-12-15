@@ -48,10 +48,16 @@
   border: 1px solid rgba(20, 161, 200, 0.03);
 }
 
+.captionColumn {
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+}
+
 .grid {
   display: grid;
-  grid-template-columns: 1fr 360px;
   gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+  align-items: start;
 }
 
 .placeholder {
@@ -92,4 +98,14 @@
 
 .link:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .captionColumn {
+    max-height: none;
+  }
 }
