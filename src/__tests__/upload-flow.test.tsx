@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import UploadPage from '@/pages/UploadPage';
@@ -7,7 +8,9 @@ describe('업로드 플로우', () => {
   function renderWithQuery(ui: React.ReactElement) {
     const client = new QueryClient();
     return render(
-      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+      </MemoryRouter>
     );
   }
 

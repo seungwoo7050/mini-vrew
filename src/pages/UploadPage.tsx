@@ -1,5 +1,6 @@
 import type { ChangeEvent, FormEvent } from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { useUploadVideo } from '@/features/upload/useUploadVideo';
 
@@ -12,8 +13,9 @@ function UploadPage() {
   const [file, setFile] = useState<SelectableFile>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { mutateAsync, isPending, isSuccess, data } = useUploadVideo();
+  const navigate = useNavigate();
 
+  const { mutateAsync, isPending, isSuccess, data } = useUploadVideo();
   const uploadTitle = useMemo(() => title.trim(), [title]);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -37,6 +39,12 @@ function UploadPage() {
       console.error('[Upload error]:', e);
     }
   };
+
+  useEffect(() => {
+    if (isSuccess && data?.videoId) {
+      navigate(`/videos/${data.videoId}`, { replace: true });
+    }
+  }, [data?.videoId, isSuccess, data, navigate]);
 
   return (
     <section className={styles.page}>
