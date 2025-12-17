@@ -7,115 +7,116 @@ import type {
   VideoId,
   VideoMetadataPatch,
 } from './types';
-
-const memory = {
-  videos: new Map<VideoId, Video>(),
-  captions: new Map<VideoId, Caption[]>(),
-  videoBlobs: new Map<VideoId, Blob>(),
-  thumbBlobs: new Map<VideoId, Blob>(),
-};
+import { deleteCaptions, getCaptions, saveCaptions } from '@/lib/captionStore';
+import {
+  deleteThumbnailBlob,
+  deleteVideoBlob,
+  deleteVideoMeta,
+  getThumbnailBlob,
+  getVideoBlob,
+  getVideoMeta,
+  listVideoMetas,
+  saveThumbnailBlob,
+  saveVideoBlob,
+  saveVideoMeta,
+} from '@/lib/localAssetStore';
 
 let seeded = false;
-let seq = sampleVideos.length + 1;
 
-function ensureSeeded() {
+function generateVideoId(prefix = 'local'): VideoId {
+  const id =
+    typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : Date.now().toString(36);
+  return `${prefix}_${id}`;
+}
+
+async function ensureSeeded(): Promise<void> {
   if (seeded) return;
   seeded = true;
-  sampleVideos.forEach((video) => {
-    memory.videos.set(video.id, { ...video });
-  });
+  const existing = await listVideoMetas();
+  if (existing.length > 0) return;
+  await Promise.all(sampleVideos.map((video) => saveVideoMeta(video)));
 }
 
-function nextId(): VideoId {
-  const id = `local_${String(seq).padStart(3, '0')}`;
-  seq += 1;
-  return id;
-}
-
-function cloneVideo(video: Video): Video {
-  return { ...video };
-}
-
-function cloneCaptions(captions: Caption[]): Caption[] {
-  return captions.map((caption) => ({ ...caption }));
+async function ensureVideoMeta(id: VideoId): Promise<Video | null> {
+  await ensureSeeded();
+  return (await getVideoMeta(id)) ?? null;
 }
 
 export function createLocalAppApi(): AppApi {
-  ensureSeeded();
-
   return {
     async listVideos(): Promise<Video[]> {
-      ensureSeeded();
-      return [...memory.videos.values()]
-        .map(cloneVideo)
+      await ensureSeeded();
+      const metas = await listVideoMetas();
+      return metas
+        .map((video) => ({ ...video }))
         .sort((a, b) => b.createdAt - a.createdAt);
     },
 
     async getVideo(id: VideoId): Promise<Video | null> {
-      ensureSeeded();
-      const found = memory.videos.get(id);
-      return found ? cloneVideo(found) : null;
+      return ensureVideoMeta(id);
     },
 
     async createVideo(input: CreateVideoInput): Promise<Video> {
-      ensureSeeded();
+      await ensureSeeded();
       const video: Video = {
-        id: input.id ?? nextId(),
+        id: input.id ?? generateVideoId(),
         title: input.title,
         createdAt: input.createdAt ?? Date.now(),
       };
-      memory.videos.set(video.id, video);
-      return cloneVideo(video);
+      await saveVideoMeta(video);
+      return { ...video };
     },
 
     async updateVideoMetadata(
       id: VideoId,
       patch: VideoMetadataPatch
     ): Promise<void> {
-      ensureSeeded();
-      const existing = memory.videos.get(id);
+      const existing = await ensureVideoMeta(id);
       if (!existing) return;
-      const updated = { ...existing, ...patch } satisfies Video;
-      memory.videos.set(id, updated);
+      await saveVideoMeta({ ...existing, ...patch });
     },
 
     async deleteVideo(id: VideoId): Promise<void> {
-      ensureSeeded();
-      memory.videos.delete(id);
-      memory.captions.delete(id);
-      memory.videoBlobs.delete(id);
-      memory.thumbBlobs.delete(id);
+      await ensureSeeded();
+      await Promise.all([
+        deleteVideoMeta(id),
+        deleteCaptions(id),
+        deleteVideoBlob(id),
+        deleteThumbnailBlob(id),
+      ]);
     },
 
     async listCaptions(videoId: VideoId): Promise<Caption[]> {
-      ensureSeeded();
-      const stored = memory.captions.get(videoId) ?? [];
-      return cloneCaptions(stored);
+      await ensureSeeded();
+      const stored = await getCaptions(videoId);
+      return stored.map((cap) => ({ ...cap }));
     },
 
     async saveCaptions(videoId: VideoId, captions: Caption[]): Promise<void> {
-      ensureSeeded();
-      memory.captions.set(videoId, cloneCaptions(captions));
+      await ensureSeeded();
+      await saveCaptions(videoId, captions);
     },
 
     async putVideoBlob(videoId: VideoId, blob: Blob): Promise<void> {
-      ensureSeeded();
-      memory.videoBlobs.set(videoId, blob);
+      await ensureSeeded();
+      await saveVideoBlob(videoId, blob);
     },
 
     async getVideoBlob(videoId: VideoId): Promise<Blob | null> {
-      ensureSeeded();
-      return memory.videoBlobs.get(videoId) ?? null;
+      await ensureSeeded();
+      return getVideoBlob(videoId);
     },
 
     async putThumbnailBlob(videoId: VideoId, blob: Blob): Promise<void> {
-      ensureSeeded();
-      memory.thumbBlobs.set(videoId, blob);
+      await ensureSeeded();
+      await saveThumbnailBlob(videoId, blob);
     },
 
     async getThumbnailBlob(videoId: VideoId): Promise<Blob | null> {
-      ensureSeeded();
-      return memory.thumbBlobs.get(videoId) ?? null;
+      await ensureSeeded();
+      return getThumbnailBlob(videoId);
     },
   };
 }
