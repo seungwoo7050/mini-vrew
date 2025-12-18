@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUploadVideo } from '@/features/upload/useUploadVideo';
 
 import styles from './UploadPage.module.css';
+import { createThumbnailForUpload } from '@/features/upload/uploadService';
 
 type SelectableFile = File | null;
 
@@ -12,15 +13,50 @@ function UploadPage() {
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<SelectableFile>(null);
   const [error, setError] = useState<string | null>(null);
+  const [thumbChoice, setThumbChoice] = useState<'jpeg' | 'png'>('jpeg');
+  const [jpegQuality, setJpegQuality] = useState(0.92);
+  const [atSeconds, setAtSeconds] = useState(0);
+  const [videoDuration, setVideoDuration] = useState<number | null>(0);
+  const [thumbnails, setThumbnails] = useState<{
+    jpeg: string | null;
+    png: string | null;
+  }>({ jpeg: null, png: null });
 
   const navigate = useNavigate();
 
   const { mutateAsync, isPending, isSuccess, data } = useUploadVideo();
   const uploadTitle = useMemo(() => title.trim(), [title]);
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const selected = event.target.files?.[0];
     setFile(selected || null);
+    if (selected) {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.src = URL.createObjectURL(selected);
+      video.onloadedmetadata = () => {
+        setVideoDuration(video.duration);
+        URL.revokeObjectURL(video.src);
+      };
+
+      try {
+        const thumbs = await createThumbnailForUpload(selected, {
+          quality: jpegQuality,
+          atSeconds: atSeconds || 0.5,
+        });
+        setThumbnails({
+          jpeg: URL.createObjectURL(thumbs.jpeg.blob),
+          png: URL.createObjectURL(thumbs.png.blob),
+        });
+      } catch (e) {
+        console.error('썸네일 생성 실패:', e);
+        setThumbnails({ jpeg: null, png: null });
+      }
+    } else {
+      setVideoDuration(null);
+      setThumbnails({ jpeg: null, png: null });
+      setAtSeconds(0);
+    }
   };
 
   const handleSumbit = async (event: FormEvent<HTMLFormElement>) => {
@@ -31,9 +67,16 @@ function UploadPage() {
     }
     setError(null);
     try {
-      await mutateAsync({ title: uploadTitle || file.name, file });
+      await mutateAsync({
+        title: uploadTitle || file.name,
+        file,
+        thumbChoice,
+        jpegQuality,
+        atSeconds,
+      });
       setTitle('');
       setFile(null);
+      setThumbnails({ jpeg: null, png: null });
     } catch (e) {
       setError('업로드 중 오류가 발생했습니다. 다시 시도해주세요.');
       console.error('[Upload error]:', e);
@@ -45,6 +88,21 @@ function UploadPage() {
       navigate(`/videos/${data.videoId}`, { replace: true });
     }
   }, [data?.videoId, isSuccess, data, navigate]);
+
+  useEffect(() => {
+    if (file && atSeconds > 0) {
+      createThumbnailForUpload(file, { quality: jpegQuality, atSeconds })
+        .then((thumbs) => {
+          setThumbnails({
+            jpeg: URL.createObjectURL(thumbs.jpeg.blob),
+            png: URL.createObjectURL(thumbs.png.blob),
+          });
+        })
+        .catch((e) => {
+          console.error('썸네일 재생성 실패:', e);
+        });
+    }
+  }, [atSeconds, file, jpegQuality]);
 
   return (
     <section className={styles.page}>
@@ -84,6 +142,78 @@ function UploadPage() {
             disabled={isPending}
           />
         </label>
+
+        {file && thumbnails.jpeg && thumbnails.png && videoDuration && (
+          <div className={styles.thumbnailSection}>
+            <h3 className={styles.subtitle}>생성된 썸네일 미리보기</h3>
+            <div className={styles.timeControl}>
+              <label htmlFor="atSeconds" className={styles.thumbLabel}>
+                썸네일 캡처 시점: {atSeconds.toFixed(1)}s /{' '}
+                {videoDuration.toFixed(1)}s
+              </label>
+              <input
+                id="atSeconds"
+                type="range"
+                min={0}
+                max={videoDuration}
+                step={0.1}
+                value={atSeconds}
+                onChange={(e) => setAtSeconds(parseFloat(e.target.value))}
+                disabled={isPending}
+                className={styles.timeSlider}
+              />
+            </div>
+            <div className={styles.thumbnailOptions}>
+              <label className={styles.thumbnailOption}>
+                <input
+                  type="radio"
+                  value="jpeg"
+                  checked={thumbChoice === 'jpeg'}
+                  onChange={() => setThumbChoice('jpeg')}
+                  disabled={isPending}
+                />
+                JPEG
+                <img
+                  src={thumbnails.jpeg}
+                  alt="JPEG 썸네일"
+                  className={styles.thumbnailPreview}
+                />
+              </label>
+              <label className={styles.thumbnailOption}>
+                <input
+                  type="radio"
+                  value="png"
+                  checked={thumbChoice === 'png'}
+                  onChange={() => setThumbChoice('png')}
+                  disabled={isPending}
+                />
+                PNG
+                <img
+                  src={thumbnails.png}
+                  alt="PNG 썸네일"
+                  className={styles.thumbnailPreview}
+                />
+              </label>
+            </div>
+            {thumbChoice === 'jpeg' && (
+              <div className={styles.qualityControl}>
+                <label htmlFor="jpegQuality" className={styles.thumbLabel}>
+                  JPEG 품질: {(jpegQuality * 100).toFixed(0)}%
+                </label>
+                <input
+                  id="jpegQuality"
+                  type="range"
+                  min={0.1}
+                  max={1}
+                  step={0.01}
+                  value={jpegQuality}
+                  onChange={(e) => setJpegQuality(parseFloat(e.target.value))}
+                  className={styles.qualitySlider}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className={styles.actions}>
           <button className={styles.button} type="submit" disabled={isPending}>

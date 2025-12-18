@@ -8,11 +8,14 @@ import {
   videosKey,
 } from '@/data/queryKeys';
 import type { CreateVideoInput } from '@/data/types';
-import { createThumbnailPlaceholder } from './uploadService';
+import { createThumbnailForUpload } from './uploadService';
 
 export type UploadPayload = {
   title: string;
   file: File;
+  thumbChoice?: 'jpeg' | 'png';
+  jpegQuality?: number;
+  atSeconds?: number;
 };
 
 type Created = {
@@ -28,8 +31,18 @@ async function createVideoWithAssets(payload: UploadPayload): Promise<Created> {
   const appApi = createAppApi();
   const video = await appApi.createVideo(input);
   await appApi.putVideoBlob(video.id, payload.file);
-  const thumb = await createThumbnailPlaceholder(payload.file);
-  await appApi.putThumbnailBlob(video.id, thumb);
+  const thumb = await createThumbnailForUpload(payload.file, {
+    quality: payload.jpegQuality,
+    atSeconds: payload.atSeconds,
+  });
+  const selectedThumb = payload.thumbChoice === 'png' ? thumb.png : thumb.jpeg;
+  await appApi.putThumbnailBlob(video.id, selectedThumb.blob);
+  if (selectedThumb.width || selectedThumb.height) {
+    await appApi.updateVideoMetadata(video.id, {
+      width: selectedThumb.width,
+      height: selectedThumb.height,
+    });
+  }
   return { videoId: video.id, title: video.title };
 }
 

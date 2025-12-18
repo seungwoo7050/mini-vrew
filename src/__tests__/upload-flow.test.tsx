@@ -1,8 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
 
 import UploadPage from '@/pages/UploadPage';
+
+vi.mock('@/features/upload/uploadService', () => ({
+  createThumbnailForUpload: vi.fn(() =>
+    Promise.resolve({
+      jpeg: { blob: new Blob(), width: 320, height: 180, mime: 'image/jpeg' },
+      png: { blob: new Blob(), width: 320, height: 180, mime: 'image/png' },
+    })
+  ),
+}));
 
 describe('업로드 플로우', () => {
   function renderWithQuery(ui: React.ReactElement) {

@@ -132,3 +132,75 @@
   padding: 8px 12px;
   border-radius: 6px;
 }
+
+.thumbnailSection {
+  margin-top: 16px;
+}
+
+.thumbnailSection h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+}
+
+.timeControl {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timeControl label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.timeSlider {
+  width: 100%;
+  max-width: 300px;
+}
+
+.thumbnailOptions {
+  display: flex;
+  gap: 16px;
+}
+
+.thumbnailOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.thumbnailPreview {
+  width: 360px;
+  height: 202px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid transparent;
+}
+
+.thumbnailOption input:checked + img {
+  border-color: #14a1c8;
+}
+
+.qualityControl {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qualityControl label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.qualitySlider {
+  width: 100%;
+  max-width: 360px;
+}
+
+.thumbLabel {
+  color: #64748b;
+}
