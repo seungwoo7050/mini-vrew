@@ -17,7 +17,13 @@
   border-radius: 8px;
   padding: 12px;
   box-shadow: 0 1px 0 rgba(11, 18, 32, 0.04);
-  border: 1px solid rgba(20, 161, 200, 0.03);
+  border: 2px solid #14a1c8;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.card:hover {
+  border-color: #fca5a5;
 }
 
 .thumb {
@@ -59,12 +65,11 @@
 }
 
 .placeholder {
-  color: #64748b;
-  font-size: 0.95rem;
-  padding: 32px;
-  text-align: center;
-  background: rgba(20, 161, 200, 0.02);
-  border-radius: 8px;
+  margin: 0 0 4px 0;
+  color: #000000;
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-top: 8px;
 }
 
 .status {
@@ -76,10 +81,15 @@
 }
 
 .videoTitle {
-  margin: 0 0 4px 0;
   color: #000000;
-  font-size: 1.2rem;
-  font-weight: 800;
+  font-size: 0.9rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  line-height: 1.2;
+  height: 2.28rem;
+  overflow: hidden;
+  user-select: none;
 }
 
 .link {
@@ -92,4 +102,33 @@
 
 .link:hover {
   text-decoration: underline;
+}
+
+.cardLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.thumbWrapper {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(226, 232, 240, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumbImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbFallback {
+  color: #94a3b8;
+  font-size: 0.95rem;
 }

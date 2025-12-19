@@ -1,6 +1,33 @@
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useVideosQuery } from '@/features/videos/queries';
+import { useThumbnailBlobQuery } from '@/features/thumbnails/queries';
 import styles from './VideosPage.module.css';
+
+function Thumbnail({ videoId, title }: { videoId: string; title: string }) {
+  const { data: blob } = useThumbnailBlobQuery(videoId);
+
+  const url = useMemo(() => {
+    if (!blob) return null;
+    return URL.createObjectURL(blob);
+  }, [blob]);
+
+  useEffect(() => {
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [url]);
+
+  return (
+    <div className={styles.thumbWrapper} aria-label="썸네일">
+      {url ? (
+        <img className={styles.thumbImage} src={url} alt={`${title} 썸네일`} />
+      ) : (
+        <div className={styles.thumbFallback}>썸네일 없음</div>
+      )}
+    </div>
+  );
+}
 
 function VideosPage() {
   const { data, isPending, isError } = useVideosQuery();
@@ -29,19 +56,19 @@ function VideosPage() {
       {!isPending && !isError && videos.length > 0 && (
         <div className={styles.grid}>
           {videos.map((video) => (
-            <article key={video.id} className={styles.card}>
-              <h2 className={styles.videoTitle}>{video.title}</h2>
-              <p className={styles.placeholder}>
-                생성: {new Date(video.createdAt).toLocaleString('ko-KR')}
-              </p>
-              <Link
-                className={styles.link}
-                to={`/videos/${video.id}`}
-                aria-label={`${video.title} 상세 보기`}
-              >
-                상세 보기 ➡️
-              </Link>
-            </article>
+            <Link
+              key={video.id}
+              to={`/videos/${video.id}`}
+              className={styles.cardLink}
+            >
+              <article className={styles.card}>
+                <Thumbnail videoId={video.id} title={video.title} />
+                <p className={styles.placeholder}>
+                  생성: {new Date(video.createdAt).toLocaleString('ko-KR')}
+                </p>
+                <h2 className={styles.videoTitle}>{video.title}</h2>
+              </article>
+            </Link>
           ))}
         </div>
       )}

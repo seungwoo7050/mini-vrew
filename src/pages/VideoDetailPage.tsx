@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useVideoQuery } from '@/features/videos/queries';
 import CaptionsPanel from '@/features/captions/CaptionsPanel';
+import { useThumbnailBlobQuery } from '@/features/thumbnails/queries';
 import styles from './VideoDetailPage.module.css';
 
 function VideoDetailPage() {
@@ -8,6 +10,19 @@ function VideoDetailPage() {
   const videoId = id ?? '';
 
   const { data: video, isPending, isError } = useVideoQuery(videoId);
+  const { data: thumbnailBlob } = useThumbnailBlobQuery(videoId);
+  const [isThumbnailCollapsed, setIsThumbnailCollapsed] = useState(false);
+
+  const thumbnailUrl = useMemo(() => {
+    if (!thumbnailBlob) return null;
+    return URL.createObjectURL(thumbnailBlob);
+  }, [thumbnailBlob]);
+
+  useEffect(() => {
+    return () => {
+      if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
+    };
+  }, [thumbnailUrl]);
 
   if (!videoId) {
     return (
@@ -56,6 +71,31 @@ function VideoDetailPage() {
       </div>
       <div className={styles.grid}>
         <article className={styles.panel}>
+          <div className={styles.thumbBlock}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>썸네일</h2>
+              <button
+                type="button"
+                onClick={() => setIsThumbnailCollapsed(!isThumbnailCollapsed)}
+                className={styles.toggleButton}
+              >
+                {isThumbnailCollapsed ? '펼치기' : '접기'}
+              </button>
+            </div>
+            {!isThumbnailCollapsed && (
+              <div className={styles.thumbWrapper} aria-label="썸네일">
+                {thumbnailUrl ? (
+                  <img
+                    className={styles.thumbImage}
+                    src={thumbnailUrl}
+                    alt={`${video.title} 썸네일`}
+                  />
+                ) : (
+                  <div className={styles.thumbFallback}>썸네일 없음</div>
+                )}
+              </div>
+            )}
+          </div>
           <p className={styles.placeholder}>
             비디오/파형/트림/추천/내보내기 섹션이 여기에 배치됩니다.
           </p>
