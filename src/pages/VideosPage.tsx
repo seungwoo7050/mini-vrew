@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useVideosQuery } from '@/features/videos/queries';
 import { useThumbnailBlobQuery } from '@/features/thumbnails/queries';
+import { useDeleteVideoMutation } from '@/features/videos/mutations';
 import styles from './VideosPage.module.css';
 
 function Thumbnail({ videoId, title }: { videoId: string; title: string }) {
@@ -31,6 +32,7 @@ function Thumbnail({ videoId, title }: { videoId: string; title: string }) {
 
 function VideosPage() {
   const { data, isPending, isError } = useVideosQuery();
+  const deleteVideo = useDeleteVideoMutation();
   const videos = data ?? [];
 
   return (
@@ -67,6 +69,22 @@ function VideosPage() {
                   생성: {new Date(video.createdAt).toLocaleString('ko-KR')}
                 </p>
                 <h2 className={styles.videoTitle}>{video.title}</h2>
+                <button
+                  className={styles.deleteButton}
+                  type="button"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (!window.confirm('이 비디오를 삭제할까요?')) return;
+                    try {
+                      await deleteVideo.mutateAsync(video.id);
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                  disabled={deleteVideo.isPending}
+                >
+                  {deleteVideo.isPending ? '삭제 중...' : '삭제'}
+                </button>
               </article>
             </Link>
           ))}

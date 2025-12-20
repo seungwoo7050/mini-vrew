@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useVideoQuery } from '@/features/videos/queries';
 import CaptionsPanel from '@/features/captions/CaptionsPanel';
 import { useThumbnailBlobQuery } from '@/features/thumbnails/queries';
+import { useDeleteVideoMutation } from '@/features/videos/mutations';
 import styles from './VideoDetailPage.module.css';
 
 function VideoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const videoId = id ?? '';
+  const navigate = useNavigate();
 
   const { data: video, isPending, isError } = useVideoQuery(videoId);
   const { data: thumbnailBlob } = useThumbnailBlobQuery(videoId);
   const [isThumbnailCollapsed, setIsThumbnailCollapsed] = useState(false);
+  const deleteVideo = useDeleteVideoMutation();
+  const [error, setError] = useState<string | null>(null);
 
   const thumbnailUrl = useMemo(() => {
     if (!thumbnailBlob) return null;
@@ -23,6 +27,18 @@ function VideoDetailPage() {
       if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
     };
   }, [thumbnailUrl]);
+
+  const handleDelete = async () => {
+    setError(null);
+    if (!window.confirm('이 비디오를 삭제할까요?')) return;
+    if (!video) return;
+    try {
+      await deleteVideo.mutateAsync(video.id);
+      navigate('/videos', { replace: true });
+    } catch {
+      setError('비디오 삭제 중 오류가 발생했습니다.');
+    }
+  };
 
   if (!videoId) {
     return (
@@ -65,10 +81,23 @@ function VideoDetailPage() {
 
   return (
     <section className={styles.page}>
-      <h1 className={styles.title}>{video.title}</h1>
-      <div className={styles.meta}>
-        생성: {new Date(video.createdAt).toLocaleString('ko-KR')}
+      <div className={styles.headerRow}>
+        <div>
+          <h1 className={styles.title}>{video.title}</h1>
+          <div className={styles.meta}>
+            생성: {new Date(video.createdAt).toLocaleString('ko-KR')}
+          </div>
+        </div>
+        <button
+          className={styles.deleteButton}
+          type="button"
+          onClick={handleDelete}
+          disabled={deleteVideo.isPending}
+        >
+          {deleteVideo.isPending ? '삭제 중...' : '삭제'}
+        </button>
       </div>
+      {error && <p className={styles.error}>{error}</p>}
       <div className={styles.grid}>
         <article className={styles.panel}>
           <div className={styles.thumbBlock}>
