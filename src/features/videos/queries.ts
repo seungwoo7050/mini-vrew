@@ -4,7 +4,7 @@ import {
   type UseQueryOptions,
 } from '@tanstack/react-query';
 import { createAppApi } from '@/data/createAppApi';
-import { videoKey, videosKey } from '@/data/queryKeys';
+import { videoBlobKey, videoKey, videosKey } from '@/data/queryKeys';
 import type { Video, VideoId } from '@/data/types';
 
 export function useVideosQuery(
@@ -24,6 +24,19 @@ export function useVideoQuery(
   return useQuery<Video | null, Error>({
     queryKey: id ? videoKey(id) : ['video', 'missing'],
     queryFn: () => createAppApi().getVideo(id!),
+    enabled: Boolean(id),
+  });
+}
+
+export function useVideoBlobQuery(
+  id?: VideoId
+): UseQueryResult<Blob | null, Error> {
+  return useQuery<Blob | null, Error>({
+    queryKey: id ? videoBlobKey(id) : ['video', 'blob', 'missing'],
+    queryFn: async () => {
+      if (!id) return null;
+      return createAppApi().getVideoBlob(id);
+    },
     enabled: Boolean(id),
   });
 }

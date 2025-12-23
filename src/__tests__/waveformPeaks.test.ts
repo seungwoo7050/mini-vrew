@@ -121,7 +121,7 @@ describe('computePeaksInIdle', () => {
     const p = computePeaksInIdle(samples, 10, undefined, { mode: 'rms' });
     await vi.runAllTimersAsync();
     const result = (await p) as Int16Array;
-    
+
     const expected = Math.round((1 / Math.SQRT2) * 32767);
 
     const mags: number[] = [];
