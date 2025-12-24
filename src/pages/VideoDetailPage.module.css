@@ -9,11 +9,19 @@
 .player {
   width: 100%;
   max-width: 960px;
-  height: 540px;
+  aspect-ratio: 16 / 9;
   background: #000000;
   border-radius: 8px;
   overflow: hidden;
   margin: 0 auto;
+}
+
+.playerVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000;
 }
 
 .meta {
@@ -56,7 +64,7 @@
 .grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+  grid-template-columns: 1fr minmax(320px, 420px);
   align-items: start;
 }
 
@@ -108,6 +116,7 @@
 .thumbBlock {
   display: grid;
   gap: 8px;
+  margin-top: 12px;
   margin-bottom: 10px;
 }
 

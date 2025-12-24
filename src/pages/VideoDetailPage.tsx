@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useVideoQuery } from '@/features/videos/queries';
+import { useVideoBlobQuery, useVideoQuery } from '@/features/videos/queries';
 import CaptionsPanel from '@/features/captions/CaptionsPanel';
 import { useThumbnailBlobQuery } from '@/features/thumbnails/queries';
 import { useDeleteVideoMutation } from '@/features/videos/mutations';
+import { usePlaybackController } from '@/features/playback/usePlaybackController';
 import styles from './VideoDetailPage.module.css';
 
 function VideoDetailPage() {
@@ -12,10 +13,16 @@ function VideoDetailPage() {
   const navigate = useNavigate();
 
   const { data: video, isPending, isError } = useVideoQuery(videoId);
+  const { data: videoBlob } = useVideoBlobQuery(videoId);
   const { data: thumbnailBlob } = useThumbnailBlobQuery(videoId);
   const [isThumbnailCollapsed, setIsThumbnailCollapsed] = useState(false);
   const deleteVideo = useDeleteVideoMutation();
   const [error, setError] = useState<string | null>(null);
+
+  const videoUrl = useMemo(() => {
+    if (!videoBlob) return null;
+    return URL.createObjectURL(videoBlob);
+  }, [videoBlob]);
 
   const thumbnailUrl = useMemo(() => {
     if (!thumbnailBlob) return null;
@@ -24,9 +31,17 @@ function VideoDetailPage() {
 
   useEffect(() => {
     return () => {
+      if (videoUrl) URL.revokeObjectURL(videoUrl);
       if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
     };
-  }, [thumbnailUrl]);
+  }, [videoUrl, thumbnailUrl]);
+
+  const { videoRef: playerRef, actions: playerActions } = usePlaybackController(
+    {
+      resetKey: videoId,
+      onLoadedMetadata: useCallback(() => {}, []),
+    }
+  );
 
   const handleDelete = async () => {
     setError(null);
@@ -100,34 +115,66 @@ function VideoDetailPage() {
       {error && <p className={styles.error}>{error}</p>}
       <div className={styles.grid}>
         <article className={styles.panel}>
-          <div className={styles.thumbBlock}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>썸네일</h2>
-              <button
-                type="button"
-                onClick={() => setIsThumbnailCollapsed(!isThumbnailCollapsed)}
-                className={styles.toggleButton}
-              >
-                {isThumbnailCollapsed ? '펼치기' : '접기'}
-              </button>
+          <div>
+            <div className={styles.player}>
+              {videoUrl ? (
+                <video
+                  ref={playerRef}
+                  src={videoUrl}
+                  poster={thumbnailUrl ?? undefined}
+                  playsInline
+                  controls
+                  className={styles.playerVideo}
+                  data-testid="video-element"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      playerActions.toggle();
+                    }
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    color: '#94a3b8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                  }}
+                >
+                  비디오 로딩 중...
+                </div>
+              )}
             </div>
-            {!isThumbnailCollapsed && (
-              <div className={styles.thumbWrapper} aria-label="썸네일">
-                {thumbnailUrl ? (
-                  <img
-                    className={styles.thumbImage}
-                    src={thumbnailUrl}
-                    alt={`${video.title} 썸네일`}
-                  />
-                ) : (
-                  <div className={styles.thumbFallback}>썸네일 없음</div>
-                )}
+
+            <div className={styles.thumbBlock}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>썸네일</h2>
+                <button
+                  type="button"
+                  onClick={() => setIsThumbnailCollapsed(!isThumbnailCollapsed)}
+                  className={styles.toggleButton}
+                >
+                  {isThumbnailCollapsed ? '펼치기' : '접기'}
+                </button>
               </div>
-            )}
+              {!isThumbnailCollapsed && (
+                <div className={styles.thumbWrapper} aria-label="썸네일">
+                  {thumbnailUrl ? (
+                    <img
+                      className={styles.thumbImage}
+                      src={thumbnailUrl}
+                      alt={`${video.title} 썸네일`}
+                    />
+                  ) : (
+                    <div className={styles.thumbFallback}>썸네일 없음</div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          <p className={styles.placeholder}>
-            비디오/파형/트림/추천/내보내기 섹션이 여기에 배치됩니다.
-          </p>
         </article>
         <article className={`${styles.panel} ${styles.captionColumn}`}>
           <CaptionsPanel videoId={videoId} videoTitle={video.title} />
