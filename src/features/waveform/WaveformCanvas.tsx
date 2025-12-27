@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react';
 
 import type { WaveformPeaks } from '@/lib/waveformPeaks';
+import {
+  msToFraction,
+  resolveViewRange,
+} from '@/features/waveform/timeMapping';
 
 type Props = {
   peaks: WaveformPeaks | null;
@@ -53,17 +57,17 @@ function WaveformCanvas({
 
     ctx.clearRect(0, 0, w, h);
 
-    const fullDuration = durationMs ?? 0;
-    const vStart = viewStartMs ?? 0;
-    const vEnd = viewEndMs ?? fullDuration;
-    const viewDuration = Math.max(0, vEnd - vStart);
+    const {
+      durationMs: fullDuration,
+      viewStartMs: vStart,
+      viewEndMs: vEnd,
+      viewDurationMs,
+    } = resolveViewRange(durationMs, viewStartMs, viewEndMs);
 
-    const msToX = (ms: number) => {
-      if (viewDuration <= 0) return 0;
-      return ((ms - vStart) / viewDuration) * w;
-    };
+    const msToX = (ms: number) =>
+      Math.round(msToFraction(ms, fullDuration, vStart, vEnd) * w);
 
-    if (trimRange && viewDuration > 0) {
+    if (trimRange && viewDurationMs > 0) {
       const startX = msToX(trimRange.startMs);
       const endX = msToX(trimRange.endMs);
       ctx.fillStyle = colorTrim;
@@ -75,7 +79,7 @@ function WaveformCanvas({
       );
     }
 
-    if (peaks && peaks.length > 0 && fullDuration > 0 && viewDuration > 0) {
+    if (peaks && peaks.length > 0 && fullDuration > 0 && viewDurationMs > 0) {
       const totalBuckets = peaks.length / 2;
       const msPerBucket = fullDuration / totalBuckets;
       const startBucket = Math.max(0, Math.floor(vStart / msPerBucket));
@@ -107,7 +111,7 @@ function WaveformCanvas({
       }
     }
 
-    if (playheadMs != null && viewDuration > 0) {
+    if (playheadMs != null && viewDurationMs > 0) {
       const x = msToX(playheadMs);
       if (x >= 0 && x <= w) {
         ctx.strokeStyle = colorPlayhead;
