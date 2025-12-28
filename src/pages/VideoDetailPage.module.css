@@ -188,6 +188,79 @@
   margin: 0;
 }
 
+.waveformSection {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.waveformHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.waveformWrapper {
+  position: relative;
+}
+
+.waveformContainer {
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0f172a;
+  border: 1px solid rgba(226, 232, 240, 0.08);
+}
+
+.waveformStatus {
+  color: #64748b;
+  margin: 4px 0;
+}
+
+.waveformError {
+  color: #f87171;
+  margin: 4px 0;
+}
+
+.timeDisplay {
+  color: #64748b;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.trimControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.trimButton {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(20, 161, 200, 0.12);
+  background: #f1f5f9;
+  color: #0b1220;
+  cursor: pointer;
+}
+
+.trimButton:hover {
+  background: #e2e8f0;
+}
+
+.trimToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0b1220;
+  font-size: 0.95rem;
+}
+
+.trimInfo {
+  color: #0b1220;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 768px) {
   .grid {
     grid-template-columns: 1fr;

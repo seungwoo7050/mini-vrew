@@ -5,6 +5,11 @@ import CaptionsPanel from '@/features/captions/CaptionsPanel';
 import { useThumbnailBlobQuery } from '@/features/thumbnails/queries';
 import { useDeleteVideoMutation } from '@/features/videos/mutations';
 import { usePlaybackController } from '@/features/playback/usePlaybackController';
+import { useWaveformPeaks } from '@/features/waveform/useWaveformPeaks';
+import WaveformCanvas from '@/features/waveform/WaveformCanvas';
+import WaveformInteraction from '@/features/waveform/WaveformInteraction';
+import TrimRangeOverlay from '@/features/waveform/TrimRangeOverlay';
+import { useTrimRange } from '@/features/playback/useTrimRange';
 import styles from './VideoDetailPage.module.css';
 
 function VideoDetailPage() {
@@ -18,6 +23,7 @@ function VideoDetailPage() {
   const [isThumbnailCollapsed, setIsThumbnailCollapsed] = useState(false);
   const deleteVideo = useDeleteVideoMutation();
   const [error, setError] = useState<string | null>(null);
+  const [isTrimGuardEnabled, setIsTrimGuardEnabled] = useState(false);
 
   const videoUrl = useMemo(() => {
     if (!videoBlob) return null;
@@ -36,12 +42,20 @@ function VideoDetailPage() {
     };
   }, [videoUrl, thumbnailUrl]);
 
-  const { videoRef: playerRef, actions: playerActions } = usePlaybackController(
-    {
-      resetKey: videoId,
-      onLoadedMetadata: useCallback(() => {}, []),
-    }
-  );
+  const {
+    videoRef: playerRef,
+    view: playerView,
+    actions: playerActions,
+  } = usePlaybackController({
+    resetKey: videoId,
+    onLoadedMetadata: useCallback(() => {}, []),
+  });
+
+  const waveform = useWaveformPeaks({
+    videoBlob: videoBlob ?? null,
+    bucketCount: 600,
+  });
+  const trim = useTrimRange(playerView.durationMs);
 
   const handleDelete = async () => {
     setError(null);
@@ -54,6 +68,60 @@ function VideoDetailPage() {
       setError('비디오 삭제 중 오류가 발생했습니다.');
     }
   };
+
+  const formatTime = useCallback((ms: number | null | undefined) => {
+    if (ms == null || Number.isNaN(ms)) return '0:00';
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }, []);
+
+  const handleSeek = useCallback(
+    (timeMs: number) => {
+      playerActions.seek(timeMs);
+    },
+    [playerActions]
+  );
+
+  const handleSetTrimStart = useCallback(() => {
+    trim.actions.setStart(playerView.currentTimeMs);
+  }, [trim.actions, playerView.currentTimeMs]);
+
+  const handleSetTrimEnd = useCallback(() => {
+    trim.actions.setEnd(playerView.currentTimeMs);
+  }, [trim.actions, playerView.currentTimeMs]);
+
+  useEffect(() => {
+    const enabled = isTrimGuardEnabled && Boolean(trim.range);
+    playerActions.setSeekGuardsEnabled(enabled);
+    playerActions.setLoopEnabled(enabled);
+    playerActions.setLoopRange(enabled ? trim.range : null);
+
+    if (enabled && trim.range) {
+      const { startMs, endMs } = trim.range;
+      if (
+        playerView.currentTimeMs < startMs ||
+        playerView.currentTimeMs > endMs
+      ) {
+        playerActions.seek(startMs);
+      }
+    }
+  }, [isTrimGuardEnabled, trim.range, playerActions, playerView.currentTimeMs]);
+
+  useEffect(() => {
+    if (!trim.range && isTrimGuardEnabled) {
+      setIsTrimGuardEnabled(false);
+    }
+  }, [trim.range, isTrimGuardEnabled]);
+
+  const handleToggleTrimGuard = useCallback(() => {
+    if (!trim.range) {
+      setIsTrimGuardEnabled(false);
+      return;
+    }
+    setIsTrimGuardEnabled((prev) => !prev);
+  }, [trim.range]);
 
   if (!videoId) {
     return (
@@ -146,6 +214,94 @@ function VideoDetailPage() {
                 >
                   비디오 로딩 중...
                 </div>
+              )}
+            </div>
+
+            <div className={styles.waveformSection}>
+              <div className={styles.waveformHeader}>
+                <h2 className={styles.sectionTitle}>파형</h2>
+                <div className={styles.timeDisplay}>
+                  {formatTime(playerView.currentTimeMs)} /{' '}
+                  {formatTime(playerView.durationMs)}
+                </div>
+              </div>
+
+              {waveform.isLoading ? (
+                <p className={styles.waveformStatus}>
+                  파형 분석 중... {Math.round(waveform.progress * 100)}%
+                </p>
+              ) : waveform.error ? (
+                <p className={styles.waveformError}>{waveform.error}</p>
+              ) : (
+                <div className={styles.waveformWrapper}>
+                  <WaveformInteraction
+                    durationMs={playerView.durationMs}
+                    onSeek={handleSeek}
+                    viewStartMs={null}
+                    viewEndMs={null}
+                    className={styles.waveformContainer}
+                  >
+                    <WaveformCanvas
+                      peaks={waveform.peaks}
+                      width={720}
+                      height={120}
+                      playheadMs={playerView.currentTimeMs}
+                      durationMs={playerView.durationMs ?? undefined}
+                      trimRange={trim.range}
+                    />
+                  </WaveformInteraction>
+                  {trim.range &&
+                    playerView.durationMs &&
+                    playerView.durationMs > 0 && (
+                      <TrimRangeOverlay
+                        range={trim.range}
+                        durationMs={playerView.durationMs}
+                        onChangeStart={trim.actions.setStart}
+                        onChangeEnd={trim.actions.setEnd}
+                        onChangeRange={trim.actions.setRange}
+                      />
+                    )}
+                </div>
+              )}
+
+              <div className={styles.trimControls}>
+                <button
+                  type="button"
+                  className={styles.trimButton}
+                  onClick={handleSetTrimStart}
+                >
+                  시작점 설정
+                </button>
+                <button
+                  type="button"
+                  className={styles.trimButton}
+                  onClick={handleSetTrimEnd}
+                >
+                  종료점 설정
+                </button>
+                <button
+                  type="button"
+                  className={styles.trimButton}
+                  onClick={trim.actions.clear}
+                >
+                  초기화
+                </button>
+                <label className={styles.trimToggle}>
+                  <input
+                    type="checkbox"
+                    checked={isTrimGuardEnabled && Boolean(trim.range)}
+                    onChange={handleToggleTrimGuard}
+                    disabled={!trim.range}
+                  />
+                  트림 구간 활성화
+                </label>
+              </div>
+              {trim.range && (
+                <p className={styles.trimInfo}>
+                  구간: {formatTime(trim.range.startMs)} ~{' '}
+                  {formatTime(trim.range.endMs)}
+                  {'  '}({formatTime(trim.range.endMs - trim.range.startMs)})
+                </p>
               )}
             </div>
 
