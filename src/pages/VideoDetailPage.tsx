@@ -10,6 +10,11 @@ import WaveformCanvas from '@/features/waveform/WaveformCanvas';
 import WaveformInteraction from '@/features/waveform/WaveformInteraction';
 import TrimRangeOverlay from '@/features/waveform/TrimRangeOverlay';
 import { useTrimRange } from '@/features/playback/useTrimRange';
+import {
+  computeTrimRecommendations,
+  type RecommendationMode,
+  type TrimRecommendation,
+} from '@/features/waveform/trimRecommendations';
 import styles from './VideoDetailPage.module.css';
 
 function VideoDetailPage() {
@@ -24,6 +29,13 @@ function VideoDetailPage() {
   const deleteVideo = useDeleteVideoMutation();
   const [error, setError] = useState<string | null>(null);
   const [isTrimGuardEnabled, setIsTrimGuardEnabled] = useState(false);
+  const [recommendMode, setRecommendMode] =
+    useState<RecommendationMode>('highlight');
+  const [recommendCount, setRecommendCount] = useState(2);
+  const [recommendations, setRecommendations] = useState<TrimRecommendation[]>(
+    []
+  );
+  const [recommendMessage, setRecommendMessage] = useState<string | null>(null);
 
   const videoUrl = useMemo(() => {
     if (!videoBlob) return null;
@@ -56,6 +68,27 @@ function VideoDetailPage() {
     bucketCount: 600,
   });
   const trim = useTrimRange(playerView.durationMs);
+
+  const recommendationSegmentMs = useMemo(() => {
+    if (!playerView.durationMs || playerView.durationMs <= 0) {
+      return 4000;
+    }
+    const rough = Math.round(playerView.durationMs / 6);
+    return Math.max(1000, Math.min(8000, rough));
+  }, [playerView.durationMs]);
+
+  const maxRecommendCount = useMemo(() => {
+    if (!playerView.durationMs || playerView.durationMs <= 0) return 1;
+    const approx = Math.max(
+      1,
+      Math.floor(playerView.durationMs / recommendationSegmentMs)
+    );
+    return Math.max(1, Math.min(5, approx));
+  }, [playerView.durationMs, recommendationSegmentMs]);
+
+  useEffect(() => {
+    setRecommendCount((prev) => Math.min(Math.max(1, prev), maxRecommendCount));
+  }, [maxRecommendCount]);
 
   const handleDelete = async () => {
     setError(null);
@@ -91,6 +124,59 @@ function VideoDetailPage() {
   const handleSetTrimEnd = useCallback(() => {
     trim.actions.setEnd(playerView.currentTimeMs);
   }, [trim.actions, playerView.currentTimeMs]);
+
+  const applyRecommendation = useCallback(
+    (range: TrimRecommendation, autoEnableGuard = false) => {
+      trim.actions.setRange(range.startMs, range.endMs);
+      if (autoEnableGuard) {
+        setIsTrimGuardEnabled(true);
+        playerActions.setSeekGuardsEnabled(true);
+        playerActions.setLoopEnabled(true);
+        playerActions.setLoopRange({
+          startMs: range.startMs,
+          endMs: range.endMs,
+        });
+        playerActions.seek(range.startMs);
+      }
+    },
+    [playerActions, trim.actions]
+  );
+
+  const handleGenerateRecommendations = useCallback(() => {
+    if (!playerView.durationMs || !waveform.peaks) {
+      setRecommendMessage('파형이 아직 준비되지 않았습니다.');
+      return;
+    }
+
+    const recs = computeTrimRecommendations(
+      waveform.peaks,
+      playerView.durationMs,
+      {
+        mode: recommendMode,
+        count: recommendCount,
+        segmentMs: recommendationSegmentMs,
+      }
+    );
+
+    if (!recs.length) {
+      setRecommendMessage('추천할 구간을 찾지 못했습니다.');
+      setRecommendations([]);
+      return;
+    }
+
+    setRecommendMessage(
+      `${recs.length}개 구간을 추천했어요. 원하는 구간을 적용하세요.`
+    );
+    setRecommendations(recs);
+    applyRecommendation(recs[0], true);
+  }, [
+    applyRecommendation,
+    playerView.durationMs,
+    recommendCount,
+    recommendMode,
+    recommendationSegmentMs,
+    waveform.peaks,
+  ]);
 
   useEffect(() => {
     const enabled = isTrimGuardEnabled && Boolean(trim.range);
@@ -295,6 +381,77 @@ function VideoDetailPage() {
                   />
                   트림 구간 활성화
                 </label>
+              </div>
+              <div className={styles.recommendSection}>
+                <div className={styles.recommendRow}>
+                  <div className={styles.recommendOptionGroup}>
+                    <span className={styles.recommendLabel}>추천 대상</span>
+                    <label className={styles.recommendRadio}>
+                      <input
+                        type="radio"
+                        name="recommend-mode"
+                        value="highlight"
+                        checked={recommendMode === 'highlight'}
+                        onChange={() => setRecommendMode('highlight')}
+                      />
+                      하이라이트
+                    </label>
+                    <label className={styles.recommendRadio}>
+                      <input
+                        type="radio"
+                        name="recommend-mode"
+                        value="remove"
+                        checked={recommendMode === 'remove'}
+                        onChange={() => setRecommendMode('remove')}
+                      />
+                      삭제 후보
+                    </label>
+                  </div>
+                  <label className={styles.recommendCount}>
+                    추천 개수
+                    <select
+                      value={recommendCount}
+                      onChange={(e) =>
+                        setRecommendCount(Number.parseInt(e.target.value, 10))
+                      }
+                    >
+                      {Array.from(
+                        { length: maxRecommendCount },
+                        (_, i) => i + 1
+                      ).map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className={styles.recommendButton}
+                    onClick={handleGenerateRecommendations}
+                    disabled={waveform.isLoading || !playerView.durationMs}
+                  >
+                    구간 추천 생성
+                  </button>
+                </div>
+                {recommendMessage && (
+                  <p className={styles.recommendStatus}>{recommendMessage}</p>
+                )}
+                {recommendations.length > 0 && (
+                  <div className={styles.recommendList}>
+                    {recommendations.map((rec, idx) => (
+                      <button
+                        key={`${rec.startMs}-${rec.endMs}-${idx}`}
+                        type="button"
+                        className={styles.recommendItem}
+                        onClick={() => applyRecommendation(rec, true)}
+                      >
+                        #{idx + 1} {formatTime(rec.startMs)} ~{' '}
+                        {formatTime(rec.endMs)}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               {trim.range && (
                 <p className={styles.trimInfo}>
