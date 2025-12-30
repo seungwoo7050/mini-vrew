@@ -19,8 +19,23 @@ describe('computeTrimRecommendations', () => {
     });
 
     expect(res).toHaveLength(2);
-    expect(res[0].startMs).toBe(1000);
-    expect(res[1].startMs).toBe(2000);
+    const highest = res.reduce((a, b) => (a.score >= b.score ? a : b));
+    expect(highest.startMs).toBe(2000);
+    const starts = res.map((r) => r.startMs).sort((a, b) => a - b);
+    expect(starts[0]).toBeGreaterThanOrEqual(0);
+    expect(starts[1]).toBeGreaterThan(starts[0]);
+  });
+
+  it('prefers longer high-energy spans when beneficial', () => {
+    const peaks = makePeaks([1000, 2000, 9000, 9000]);
+    const res = computeTrimRecommendations(peaks, 4000, {
+      mode: 'highlight',
+      count: 1,
+      segmentMs: 2000,
+    });
+
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ startMs: 1000, endMs: 4000 });
   });
 
   it('returns lowest energy segments for remove mode', () => {

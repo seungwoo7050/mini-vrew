@@ -10,8 +10,9 @@ import WaveformCanvas from '@/features/waveform/WaveformCanvas';
 import WaveformInteraction from '@/features/waveform/WaveformInteraction';
 import TrimRangeOverlay from '@/features/waveform/TrimRangeOverlay';
 import { useTrimRange } from '@/features/playback/useTrimRange';
+import TrimRecommendationOverlay from '@/features/waveform/TrimRecommendationOverlay';
+import { useTrimAuto } from '@/features/playback/useTrimAuto';
 import {
-  computeTrimRecommendations,
   type RecommendationMode,
   type TrimRecommendation,
 } from '@/features/waveform/trimRecommendations';
@@ -32,10 +33,6 @@ function VideoDetailPage() {
   const [recommendMode, setRecommendMode] =
     useState<RecommendationMode>('highlight');
   const [recommendCount, setRecommendCount] = useState(2);
-  const [recommendations, setRecommendations] = useState<TrimRecommendation[]>(
-    []
-  );
-  const [recommendMessage, setRecommendMessage] = useState<string | null>(null);
 
   const videoUrl = useMemo(() => {
     if (!videoBlob) return null;
@@ -90,6 +87,22 @@ function VideoDetailPage() {
     setRecommendCount((prev) => Math.min(Math.max(1, prev), maxRecommendCount));
   }, [maxRecommendCount]);
 
+  const {
+    recommendations,
+    activeIndex: activeRecommendationIndex,
+    message: recommendMessage,
+    isGenerating: isRecommendationGenerating,
+    generate: generateRecommendations,
+    apply: applyRecommendationAt,
+  } = useTrimAuto({
+    peaks: waveform.peaks,
+    durationMs: playerView.durationMs,
+    mode: recommendMode,
+    count: recommendCount,
+    targetSegmentMs: recommendationSegmentMs,
+    onApply: (range, meta) => applyRecommendation(range, meta.autoEnableGuard),
+  });
+
   const handleDelete = async () => {
     setError(null);
     if (!window.confirm('이 비디오를 삭제할까요?')) return;
@@ -117,73 +130,98 @@ function VideoDetailPage() {
     [playerActions]
   );
 
+  const preservePlayback = useCallback(
+    (fn: () => void) => {
+      const wasPlaying = playerView.isPlaying;
+      fn();
+      if (wasPlaying) {
+        playerActions.play();
+      }
+    },
+    [playerActions, playerView.isPlaying]
+  );
+
   const handleSetTrimStart = useCallback(() => {
-    trim.actions.setStart(playerView.currentTimeMs);
-  }, [trim.actions, playerView.currentTimeMs]);
+    preservePlayback(() => trim.actions.setStart(playerView.currentTimeMs));
+  }, [preservePlayback, trim.actions, playerView.currentTimeMs]);
 
   const handleSetTrimEnd = useCallback(() => {
-    trim.actions.setEnd(playerView.currentTimeMs);
-  }, [trim.actions, playerView.currentTimeMs]);
+    preservePlayback(() => trim.actions.setEnd(playerView.currentTimeMs));
+  }, [preservePlayback, trim.actions, playerView.currentTimeMs]);
+
+  const handleClearTrim = useCallback(() => {
+    preservePlayback(() => trim.actions.clear());
+  }, [preservePlayback, trim.actions]);
+
+  const handleChangeTrimStart = useCallback(
+    (ms: number) => preservePlayback(() => trim.actions.setStart(ms)),
+    [preservePlayback, trim.actions]
+  );
+
+  const handleChangeTrimEnd = useCallback(
+    (ms: number) => preservePlayback(() => trim.actions.setEnd(ms)),
+    [preservePlayback, trim.actions]
+  );
+
+  const handleChangeTrimRange = useCallback(
+    (startMs: number, endMs: number) =>
+      preservePlayback(() => trim.actions.setRange(startMs, endMs)),
+    [preservePlayback, trim.actions]
+  );
+
+  const syncGuardForRange = useCallback(
+    (
+      range: TrimRecommendation | { startMs: number; endMs: number } | null,
+      autoEnable = false
+    ) => {
+      const enableGuard = autoEnable || isTrimGuardEnabled;
+      if (!range) {
+        playerActions.setSeekGuardsEnabled(false);
+        playerActions.setLoopEnabled(false);
+        playerActions.setLoopRange(null);
+        return enableGuard;
+      }
+
+      playerActions.setSeekGuardsEnabled(enableGuard);
+      playerActions.setLoopEnabled(enableGuard);
+      playerActions.setLoopRange(enableGuard ? range : null);
+      return enableGuard;
+    },
+    [isTrimGuardEnabled, playerActions]
+  );
 
   const applyRecommendation = useCallback(
     (range: TrimRecommendation, autoEnableGuard = false) => {
-      trim.actions.setRange(range.startMs, range.endMs);
-      if (autoEnableGuard) {
-        setIsTrimGuardEnabled(true);
-        playerActions.setSeekGuardsEnabled(true);
-        playerActions.setLoopEnabled(true);
-        playerActions.setLoopRange({
-          startMs: range.startMs,
-          endMs: range.endMs,
-        });
-        playerActions.seek(range.startMs);
-      }
+      preservePlayback(() => {
+        trim.actions.setRange(range.startMs, range.endMs);
+        if (autoEnableGuard) {
+          setIsTrimGuardEnabled(true);
+        }
+        const enabled = syncGuardForRange(range, autoEnableGuard);
+        if (
+          enabled &&
+          (playerView.currentTimeMs < range.startMs ||
+            playerView.currentTimeMs > range.endMs)
+        ) {
+          playerActions.seek(range.startMs);
+        }
+      });
     },
-    [playerActions, trim.actions]
+    [
+      preservePlayback,
+      trim.actions,
+      syncGuardForRange,
+      playerActions,
+      playerView.currentTimeMs,
+    ]
   );
 
   const handleGenerateRecommendations = useCallback(() => {
-    if (!playerView.durationMs || !waveform.peaks) {
-      setRecommendMessage('파형이 아직 준비되지 않았습니다.');
-      return;
-    }
-
-    const recs = computeTrimRecommendations(
-      waveform.peaks,
-      playerView.durationMs,
-      {
-        mode: recommendMode,
-        count: recommendCount,
-        segmentMs: recommendationSegmentMs,
-      }
-    );
-
-    if (!recs.length) {
-      setRecommendMessage('추천할 구간을 찾지 못했습니다.');
-      setRecommendations([]);
-      return;
-    }
-
-    setRecommendMessage(
-      `${recs.length}개 구간을 추천했어요. 원하는 구간을 적용하세요.`
-    );
-    setRecommendations(recs);
-    applyRecommendation(recs[0], true);
-  }, [
-    applyRecommendation,
-    playerView.durationMs,
-    recommendCount,
-    recommendMode,
-    recommendationSegmentMs,
-    waveform.peaks,
-  ]);
+    generateRecommendations();
+  }, [generateRecommendations]);
 
   useEffect(() => {
-    const enabled = isTrimGuardEnabled && Boolean(trim.range);
-    playerActions.setSeekGuardsEnabled(enabled);
-    playerActions.setLoopEnabled(enabled);
-    playerActions.setLoopRange(enabled ? trim.range : null);
-
+    const enabled = syncGuardForRange(trim.range, false);
     if (enabled && trim.range) {
       const { startMs, endMs } = trim.range;
       if (
@@ -193,7 +231,13 @@ function VideoDetailPage() {
         playerActions.seek(startMs);
       }
     }
-  }, [isTrimGuardEnabled, trim.range, playerActions, playerView.currentTimeMs]);
+  }, [
+    isTrimGuardEnabled,
+    trim.range,
+    playerActions,
+    playerView.currentTimeMs,
+    syncGuardForRange,
+  ]);
 
   useEffect(() => {
     if (!trim.range && isTrimGuardEnabled) {
@@ -336,15 +380,21 @@ function VideoDetailPage() {
                       trimRange={trim.range}
                     />
                   </WaveformInteraction>
+                  <TrimRecommendationOverlay
+                    recommendations={recommendations}
+                    durationMs={playerView.durationMs}
+                    activeIndex={activeRecommendationIndex}
+                    onSelect={applyRecommendationAt}
+                  />
                   {trim.range &&
                     playerView.durationMs &&
                     playerView.durationMs > 0 && (
                       <TrimRangeOverlay
                         range={trim.range}
                         durationMs={playerView.durationMs}
-                        onChangeStart={trim.actions.setStart}
-                        onChangeEnd={trim.actions.setEnd}
-                        onChangeRange={trim.actions.setRange}
+                        onChangeStart={handleChangeTrimStart}
+                        onChangeEnd={handleChangeTrimEnd}
+                        onChangeRange={handleChangeTrimRange}
                       />
                     )}
                 </div>
@@ -368,7 +418,7 @@ function VideoDetailPage() {
                 <button
                   type="button"
                   className={styles.trimButton}
-                  onClick={trim.actions.clear}
+                  onClick={handleClearTrim}
                 >
                   초기화
                 </button>
@@ -429,9 +479,15 @@ function VideoDetailPage() {
                     type="button"
                     className={styles.recommendButton}
                     onClick={handleGenerateRecommendations}
-                    disabled={waveform.isLoading || !playerView.durationMs}
+                    disabled={
+                      waveform.isLoading ||
+                      !playerView.durationMs ||
+                      isRecommendationGenerating
+                    }
                   >
-                    구간 추천 생성
+                    {isRecommendationGenerating
+                      ? '생성 중...'
+                      : '구간 추천 생성'}
                   </button>
                 </div>
                 {recommendMessage && (
@@ -443,8 +499,12 @@ function VideoDetailPage() {
                       <button
                         key={`${rec.startMs}-${rec.endMs}-${idx}`}
                         type="button"
-                        className={styles.recommendItem}
-                        onClick={() => applyRecommendation(rec, true)}
+                        className={`${styles.recommendItem} ${
+                          idx === activeRecommendationIndex
+                            ? styles.recommendItemActive
+                            : ''
+                        }`}
+                        onClick={() => applyRecommendationAt(idx)}
                       >
                         #{idx + 1} {formatTime(rec.startMs)} ~{' '}
                         {formatTime(rec.endMs)}

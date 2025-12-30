@@ -11,20 +11,15 @@ export type TrimRecommendation = TrimRange & { score: number };
 export type RecommendationOptions = {
   mode: RecommendationMode;
   count: number;
+  /**
+   * Optional target segment length in milliseconds. Acts as a hint rather than a strict
+   * fixed size. The algorithm will search around this target to find better fitting
+   * segments using dynamic programming.
+   */
   segmentMs?: number;
 };
 
 const I16_MAX = 32767;
-
-function clampSegmentMs(durationMs: number, segmentMs?: number) {
-  if (durationMs <= 0) return 0;
-  const base = segmentMs ?? Math.round(durationMs / 6);
-  const clamped = Math.max(
-    MIN_TRIM_GAP_MS,
-    Math.min(base, Math.round(durationMs / 2))
-  );
-  return Math.min(clamped, durationMs);
-}
 
 function buildAmplitudeSums(peaks: WaveformPeaks) {
   const bucketCount = Math.floor(peaks.length / 2);
@@ -40,14 +35,65 @@ function buildAmplitudeSums(peaks: WaveformPeaks) {
   return { bucketCount, prefix: sums } as const;
 }
 
-function segmentScores(prefix: Float64Array, segmentBuckets: number) {
-  const available = prefix.length - 1;
-  const segmentCount = Math.max(0, available - segmentBuckets + 1);
-  const scores = new Float64Array(segmentCount);
-  for (let i = 0; i < segmentCount; i++) {
-    scores[i] = prefix[i + segmentBuckets] - prefix[i];
+function deriveSegmentWindow(
+  durationMs: number,
+  bucketCount: number,
+  targetSegmentMs?: number
+) {
+  if (durationMs <= 0 || bucketCount <= 0) {
+    return { minBuckets: 0, maxBuckets: 0 } as const;
   }
-  return scores;
+
+  const target = Math.max(
+    MIN_TRIM_GAP_MS,
+    Math.min(targetSegmentMs ?? Math.round(durationMs / 6), durationMs)
+  );
+  const minMs = Math.max(MIN_TRIM_GAP_MS * 4, Math.round(target * 0.6));
+  const maxMs = Math.max(minMs + MIN_TRIM_GAP_MS, Math.round(target * 1.6));
+
+  const bucketFromMs = (ms: number) =>
+    Math.max(1, Math.round((ms / durationMs) * bucketCount));
+
+  const minBuckets = bucketFromMs(minMs);
+  const maxBuckets = Math.max(minBuckets, bucketFromMs(maxMs));
+
+  return { minBuckets, maxBuckets } as const;
+}
+
+type Candidate = {
+  startBucket: number;
+  endBucket: number;
+  score: number;
+};
+
+function buildCandidates(
+  prefix: Float64Array,
+  bucketCount: number,
+  minBuckets: number,
+  maxBuckets: number
+) {
+  const candidates: Candidate[] = [];
+  if (minBuckets <= 0 || maxBuckets <= 0) return candidates;
+
+  const lengthStep = Math.max(1, Math.floor(minBuckets / 2));
+
+  for (let start = 0; start < bucketCount; start++) {
+    const available = bucketCount - start;
+    const maxLen = Math.min(maxBuckets, available);
+    for (let len = minBuckets; len <= maxLen; len += lengthStep) {
+      const end = start + len;
+      const score = prefix[end] - prefix[start];
+      candidates.push({ startBucket: start, endBucket: end, score });
+    }
+
+    if ((maxLen - minBuckets) % lengthStep !== 0 && maxLen >= minBuckets) {
+      const end = start + maxLen;
+      const score = prefix[end] - prefix[start];
+      candidates.push({ startBucket: start, endBucket: end, score });
+    }
+  }
+
+  return candidates;
 }
 
 export function computeTrimRecommendations(
@@ -58,87 +104,90 @@ export function computeTrimRecommendations(
   if (!peaks || !durationMs || durationMs <= 0) return [];
 
   const { bucketCount, prefix } = buildAmplitudeSums(peaks);
-  const segmentMs = clampSegmentMs(durationMs, options.segmentMs);
-  if (segmentMs <= 0) return [];
-
-  const segmentBuckets = Math.max(
-    1,
-    Math.round((segmentMs / durationMs) * bucketCount)
+  const { minBuckets, maxBuckets } = deriveSegmentWindow(
+    durationMs,
+    bucketCount,
+    options.segmentMs
   );
-  if (segmentBuckets >= bucketCount) {
+
+  if (minBuckets <= 0 || maxBuckets <= 0) return [];
+  if (maxBuckets >= bucketCount) {
     return [
-      {
-        startMs: 0,
-        endMs: durationMs,
-        score: prefix[prefix.length - 1],
-      },
+      { startMs: 0, endMs: durationMs, score: prefix[prefix.length - 1] },
     ];
   }
 
-  const scores = segmentScores(prefix, segmentBuckets);
-  if (scores.length === 0) return [];
+  const candidates = buildCandidates(
+    prefix,
+    bucketCount,
+    minBuckets,
+    maxBuckets
+  );
+  if (!candidates.length) return [];
 
-  const weighted = (() => {
-    if (options.mode === 'remove') {
-      const maxScore = Math.max(...scores);
-      return scores.map((s) => maxScore - s);
+  const baseScores = candidates.map((c) => c.score);
+  const maxScore = Math.max(...baseScores);
+  const weights = baseScores.map((score) =>
+    options.mode === 'remove' ? maxScore - score : score
+  );
+
+  const sorted = candidates
+    .map((c, idx) => ({ ...c, weight: weights[idx] }))
+    .sort((a, b) => a.endBucket - b.endBucket);
+
+  const ends = sorted.map((c) => c.endBucket);
+  const prevNonOverlap: number[] = new Array(sorted.length).fill(-1);
+  for (let i = 0; i < sorted.length; i++) {
+    const start = sorted[i].startBucket;
+    let lo = 0;
+    let hi = i - 1;
+    let found = -1;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (ends[mid] <= start) {
+        found = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
     }
-    return scores.slice();
-  })();
+    prevNonOverlap[i] = found;
+  }
 
-  const K = Math.max(1, Math.min(options.count, scores.length));
-  const n = scores.length;
-  const dp = Array.from({ length: K + 1 }, () =>
-    new Float64Array(n).fill(Number.NEGATIVE_INFINITY)
-  );
-  const prevIdx: number[][] = Array.from({ length: K + 1 }, () =>
-    new Array(n).fill(-1)
-  );
-  const took: boolean[][] = Array.from({ length: K + 1 }, () =>
+  const K = Math.max(1, Math.min(options.count, sorted.length));
+  const n = sorted.length;
+  const dp = Array.from({ length: K + 1 }, () => new Float64Array(n));
+  const choose: boolean[][] = Array.from({ length: K + 1 }, () =>
     new Array(n).fill(false)
   );
 
   for (let i = 0; i < n; i++) {
-    dp[1][i] = weighted[i];
-    prevIdx[1][i] = i - segmentBuckets;
-    took[1][i] = true;
-    if (i > 0 && dp[1][i - 1] >= dp[1][i]) {
-      dp[1][i] = dp[1][i - 1];
-      prevIdx[1][i] = prevIdx[1][i - 1];
-      took[1][i] = false;
+    const take = sorted[i].weight;
+    const skip = i > 0 ? dp[1][i - 1] : 0;
+    if (take >= skip) {
+      dp[1][i] = take;
+      choose[1][i] = true;
+    } else {
+      dp[1][i] = skip;
     }
   }
 
   for (let k = 2; k <= K; k++) {
     for (let i = 0; i < n; i++) {
-      const prevCandidate = i - segmentBuckets;
-      let takeScore = Number.NEGATIVE_INFINITY;
-      if (
-        prevCandidate >= 0 &&
-        dp[k - 1][prevCandidate] > Number.NEGATIVE_INFINITY / 2
-      ) {
-        takeScore = dp[k - 1][prevCandidate] + weighted[i];
-      } else if (prevCandidate < 0 && k === 1) {
-        takeScore = weighted[i];
-      }
-
-      const skipScore = i > 0 ? dp[k][i - 1] : Number.NEGATIVE_INFINITY;
-
-      if (takeScore >= skipScore) {
-        dp[k][i] = takeScore;
-        prevIdx[k][i] = prevCandidate;
-        took[k][i] = true;
+      const prev = prevNonOverlap[i];
+      const take = sorted[i].weight + (prev >= 0 ? dp[k - 1][prev] : 0);
+      const skip = i > 0 ? dp[k][i - 1] : 0;
+      if (take >= skip) {
+        dp[k][i] = take;
+        choose[k][i] = true;
       } else {
-        dp[k][i] = skipScore;
-        prevIdx[k][i] = i > 0 ? prevIdx[k][i - 1] : -1;
-        took[k][i] = false;
+        dp[k][i] = skip;
       }
     }
   }
 
   let bestK = 1;
-  const bestI = n - 1;
-  let bestScore = dp[1][bestI];
+  let bestScore = dp[1][n - 1];
   for (let k = 2; k <= K; k++) {
     if (dp[k][n - 1] > bestScore) {
       bestScore = dp[k][n - 1];
@@ -146,28 +195,28 @@ export function computeTrimRecommendations(
     }
   }
 
-  const segments: number[] = [];
+  const chosen: number[] = [];
   let k = bestK;
   let i = n - 1;
   while (k > 0 && i >= 0) {
-    if (took[k][i]) {
-      segments.push(i);
-      i = prevIdx[k][i];
+    if (choose[k][i]) {
+      chosen.push(i);
+      i = prevNonOverlap[i];
       k -= 1;
     } else {
       i -= 1;
     }
   }
 
-  segments.sort((a, b) => a - b);
+  const toMs = (bucket: number) =>
+    Math.round((bucket / bucketCount) * durationMs);
 
-  const toMs = (startBucket: number) =>
-    Math.round((startBucket / bucketCount) * durationMs);
-
-  return segments.map((startIdx) => {
-    const startMs = toMs(startIdx);
-    const endBucket = startIdx + segmentBuckets;
-    const endMs = Math.min(durationMs, toMs(endBucket));
-    return { startMs, endMs, score: scores[startIdx] };
-  });
+  return chosen
+    .map((idx) => sorted[idx])
+    .sort((a, b) => a.startBucket - b.startBucket)
+    .map((c) => ({
+      startMs: toMs(c.startBucket),
+      endMs: Math.min(durationMs, toMs(c.endBucket)),
+      score: c.score,
+    }));
 }
