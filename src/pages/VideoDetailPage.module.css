@@ -68,6 +68,10 @@
   align-items: start;
 }
 
+.grid > * {
+  min-width: 0;
+}
+
 .placeholder {
   color: #64748b;
   padding: 24px;
@@ -202,13 +206,16 @@
 
 .waveformWrapper {
   position: relative;
+  min-width: 0;
 }
 
 .waveformContainer {
   border-radius: 10px;
   overflow: hidden;
-  background: #0f172a;
-  border: 1px solid rgba(226, 232, 240, 0.08);
+  background: #ffffff;
+  border: 1px solid #14a1c8;
+  width: 100%;
+  min-width: 0;
 }
 
 .waveformStatus {

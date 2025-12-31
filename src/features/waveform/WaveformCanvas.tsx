@@ -33,8 +33,8 @@ function WaveformCanvas({
   trimRange,
   mode = 'peaks',
   colorWave = '#4a5568',
-  colorTrim = 'rgba(100, 108, 255, 0.25)',
-  colorPlayhead = '#646cff',
+  colorTrim = 'rgba(252, 165, 165, 0.25)',
+  colorPlayhead = '#fca5a5',
   className,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useVideoBlobQuery, useVideoQuery } from '@/features/videos/queries';
 import CaptionsPanel from '@/features/captions/CaptionsPanel';
@@ -33,6 +33,8 @@ function VideoDetailPage() {
   const [recommendMode, setRecommendMode] =
     useState<RecommendationMode>('highlight');
   const [recommendCount, setRecommendCount] = useState(2);
+  const waveformWrapperRef = useRef<HTMLDivElement | null>(null);
+  const [waveformWidth, setWaveformWidth] = useState(0);
 
   const videoUrl = useMemo(() => {
     if (!videoBlob) return null;
@@ -64,6 +66,27 @@ function VideoDetailPage() {
     videoBlob: videoBlob ?? null,
     bucketCount: 600,
   });
+
+  useEffect(() => {
+    const el = waveformWrapperRef.current;
+    if (!el) return;
+
+    const updateWidth = () => {
+      const nextWidth = el.clientWidth;
+      setWaveformWidth((prev) => (prev === nextWidth ? prev : nextWidth));
+    };
+
+    updateWidth();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateWidth);
+      return () => window.removeEventListener('resize', updateWidth);
+    }
+
+    const observer = new ResizeObserver(() => updateWidth());
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [waveform.isLoading]);
   const trim = useTrimRange(playerView.durationMs);
 
   const recommendationSegmentMs = useMemo(() => {
@@ -363,7 +386,10 @@ function VideoDetailPage() {
               ) : waveform.error ? (
                 <p className={styles.waveformError}>{waveform.error}</p>
               ) : (
-                <div className={styles.waveformWrapper}>
+                <div
+                  className={styles.waveformWrapper}
+                  ref={waveformWrapperRef}
+                >
                   <WaveformInteraction
                     durationMs={playerView.durationMs}
                     onSeek={handleSeek}
@@ -373,7 +399,7 @@ function VideoDetailPage() {
                   >
                     <WaveformCanvas
                       peaks={waveform.peaks}
-                      width={720}
+                      width={waveformWidth || 1}
                       height={120}
                       playheadMs={playerView.currentTimeMs}
                       durationMs={playerView.durationMs ?? undefined}
