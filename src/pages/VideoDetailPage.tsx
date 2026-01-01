@@ -26,6 +26,7 @@ function VideoDetailPage() {
   const { data: video, isPending, isError } = useVideoQuery(videoId);
   const { data: videoBlob } = useVideoBlobQuery(videoId);
   const { data: thumbnailBlob } = useThumbnailBlobQuery(videoId);
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const [isThumbnailCollapsed, setIsThumbnailCollapsed] = useState(false);
   const deleteVideo = useDeleteVideoMutation();
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +62,14 @@ function VideoDetailPage() {
     resetKey: videoId,
     onLoadedMetadata: useCallback(() => {}, []),
   });
+
+  const handleVideoRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      playerRef(el);
+      setVideoEl(el);
+    },
+    [playerRef]
+  );
 
   const waveform = useWaveformPeaks({
     videoBlob: videoBlob ?? null,
@@ -340,7 +349,7 @@ function VideoDetailPage() {
             <div className={styles.player}>
               {videoUrl ? (
                 <video
-                  ref={playerRef}
+                  ref={handleVideoRef}
                   src={videoUrl}
                   poster={thumbnailUrl ?? undefined}
                   playsInline
