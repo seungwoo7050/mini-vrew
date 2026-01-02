@@ -16,11 +16,18 @@ export type VideoMetadataPatch = Partial<
   Pick<Video, 'durationMs' | 'width' | 'height'>
 >;
 
+export type CaptionWord = {
+  text: string;
+  startMs: number;
+  endMs: number;
+};
+
 export type Caption = {
   id: CaptionId;
   startMs: number;
   endMs: number;
   text: string;
+  words?: CaptionWord[];
 };
 
 export type CreateVideoInput = {
