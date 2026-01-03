@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useVideoBlobQuery, useVideoQuery } from '@/features/videos/queries';
 import CaptionsPanel from '@/features/captions/CaptionsPanel';
+import SubtitleOverlay from '@/features/captions/SubtitleOverlay';
+import { useCaptionsQuery } from '@/features/captions/queries';
 import { useThumbnailBlobQuery } from '@/features/thumbnails/queries';
 import { useDeleteVideoMutation } from '@/features/videos/mutations';
 import { usePlaybackController } from '@/features/playback/usePlaybackController';
@@ -26,6 +28,7 @@ function VideoDetailPage() {
   const { data: video, isPending, isError } = useVideoQuery(videoId);
   const { data: videoBlob } = useVideoBlobQuery(videoId);
   const { data: thumbnailBlob } = useThumbnailBlobQuery(videoId);
+  const { data: captions = [] } = useCaptionsQuery(videoId);
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const [isThumbnailCollapsed, setIsThumbnailCollapsed] = useState(false);
   const deleteVideo = useDeleteVideoMutation();
@@ -348,22 +351,29 @@ function VideoDetailPage() {
           <div>
             <div className={styles.player}>
               {videoUrl ? (
-                <video
-                  ref={handleVideoRef}
-                  src={videoUrl}
-                  poster={thumbnailUrl ?? undefined}
-                  playsInline
-                  controls
-                  className={styles.playerVideo}
-                  data-testid="video-element"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      playerActions.toggle();
-                    }
-                  }}
-                />
+                <>
+                  <video
+                    ref={handleVideoRef}
+                    src={videoUrl}
+                    poster={thumbnailUrl ?? undefined}
+                    playsInline
+                    controls
+                    className={styles.playerVideo}
+                    data-testid="video-element"
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        playerActions.toggle();
+                      }
+                    }}
+                  />
+                  <SubtitleOverlay
+                    captions={captions}
+                    currentTimeMs={playerView.currentTimeMs}
+                    onWordClick={handleSeek}
+                  />
+                </>
               ) : (
                 <div
                   style={{

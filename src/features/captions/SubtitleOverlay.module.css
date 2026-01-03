@@ -1,0 +1,45 @@
+.overlay {
+  position: absolute;
+  bottom: 48px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.captionBox {
+  max-width: 85%;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 10px;
+  text-align: center;
+  pointer-events: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.word {
+  display: inline;
+  margin: 0 3px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.1rem;
+  line-height: 1.5;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    background 0.12s ease;
+  border-radius: 3px;
+  padding: 1px 2px;
+}
+
+.word:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.activeWord {
+  color: #fff;
+  background: rgba(100, 108, 255, 0.55);
+  font-weight: 600;
+}
