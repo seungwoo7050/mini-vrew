@@ -1,0 +1,222 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--color-surface, #ffffff);
+  border-radius: 8px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text, #000000);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.button {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-border, #14a1c8);
+  background: var(--color-bg, #ffffff);
+  color: var(--color-text, #000000);
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-hover, #ffffff);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.buttonActive {
+  background: #ffffff;
+  border-color: #14a1c8;
+  color: #000000;
+}
+
+.captionRow {
+  padding: 0.75rem;
+  background: var(--color-bg, #ffffff);
+  border: 1px solid var(--color-border, #14a1c8);
+  border-radius: 6px;
+}
+
+.captionRowActive {
+  border-color: var(--color-primary, #14a1c8);
+  background: rgba(252, 165, 165, 0.08);
+}
+
+.captionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.captionTime {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #64748b);
+  font-variant-numeric: tabular-nums;
+}
+
+.captionActions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-secondary, #64748b);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.iconButton:hover {
+  background: var(--color-hover, #f1f5f9);
+  color: var(--color-text, #000000);
+}
+
+.iconButtonDanger:hover {
+  background: rgba(252, 165, 165, 0.2);
+  color: #fca5a5;
+}
+
+.wordList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-height: 1.75rem;
+}
+
+.word {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-bg-alt, #f1f5f9);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--color-text, #000000);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.word:hover {
+  border-color: var(--color-border-hover, #fca5a5);
+}
+
+.wordActive {
+  background: rgba(252, 165, 165, 0.12);
+  border-color: var(--color-primary, #fca5a5);
+}
+
+.wordSelected {
+  background: #fca5a5;
+  border: 0;
+  color: #000000;
+}
+
+.wordDragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.wordEditContainer {
+  display: inline-flex;
+  align-items: center;
+}
+
+.wordInput {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--color-primary, #14a1c8);
+  border-radius: 4px;
+  background: var(--color-bg, #ffffff);
+  color: var(--color-text, #000000);
+  outline: none;
+  min-width: 60px;
+}
+
+.timelineStrip {
+  position: relative;
+  height: 32px;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.timelineWord {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  background: rgba(20, 161, 200, 0.35);
+  border: 1px solid rgba(20, 161, 200, 0.6);
+  border-radius: 3px;
+  cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: var(--color-text, #000000);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timelineWord:hover {
+  border-color: var(--color-primary, #14a1c8);
+}
+
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.resizeHandleLeft {
+  left: 0;
+}
+
+.resizeHandleRight {
+  right: 0;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary, #64748b);
+  font-size: 0.9rem;
+}
+
+.keyboardHint {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #64748b);
+  margin-top: 0.25rem;
+}

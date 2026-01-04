@@ -5,6 +5,7 @@ import VideosPage from '@/pages/VideosPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import VideoDetailPage from '@/pages/VideoDetailPage';
 import UploadPage from '@/pages/UploadPage';
+import DevWordEditorPage from '@/pages/DevWordEditorPage';
 
 export const router = createBrowserRouter([
   {
@@ -15,6 +16,7 @@ export const router = createBrowserRouter([
       { path: 'videos', element: <VideosPage /> },
       { path: 'videos/:id', element: <VideoDetailPage /> },
       { path: 'upload', element: <UploadPage /> },
+      { path: 'dev/word-editor', element: <DevWordEditorPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
