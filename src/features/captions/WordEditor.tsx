@@ -8,6 +8,11 @@ type Props = {
   captions: Caption[];
   currentTimeMs: number;
   onUpdateCaption: (caption: Caption) => void;
+  onSplitCaption?: (
+    captionId: string,
+    wordIndex: number,
+    mode: 'newline' | 'next'
+  ) => void;
   onSeek?: (timeMs: number) => void;
   className?: string;
 };
@@ -20,6 +25,7 @@ function WordEditor({
   captions,
   currentTimeMs,
   onUpdateCaption,
+  onSplitCaption,
   onSeek,
   className,
 }: Props) {
@@ -114,6 +120,13 @@ function WordEditor({
       }
     },
     [handleEditSubmit]
+  );
+
+  const handleSplit = useCallback(
+    (captionId: string, wordIndex: number, mode: 'newline' | 'next') => {
+      onSplitCaption?.(captionId, wordIndex, mode);
+    },
+    [onSplitCaption]
   );
 
   const handleKeyDown = useCallback(
@@ -255,6 +268,33 @@ function WordEditor({
               <span className={styles.captionTime}>
                 {formatTime(caption.startMs)} → {formatTime(caption.endMs)}
               </span>
+              {isSelected &&
+                selectedWordIndex !== null &&
+                selectedWordIndex > 0 &&
+                onSplitCaption && (
+                  <div className={styles.captionActions}>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      onClick={() =>
+                        handleSplit(caption.id, selectedWordIndex, 'newline')
+                      }
+                      title="줄바꿈 삽입 (선택한 단어 앞에 줄바꿈)"
+                    >
+                      ↵
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      onClick={() =>
+                        handleSplit(caption.id, selectedWordIndex, 'next')
+                      }
+                      title="자막 분리 (선택한 단어부터 새 자막 생성)"
+                    >
+                      ✂
+                    </button>
+                  </div>
+                )}
             </div>
 
             <div className={styles.wordList}>
