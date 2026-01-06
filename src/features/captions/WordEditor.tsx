@@ -13,6 +13,7 @@ type Props = {
     wordIndex: number,
     mode: 'newline' | 'next'
   ) => void;
+  onMergeCaption?: (captionId: string, direction: 'up' | 'down') => void;
   onSeek?: (timeMs: number) => void;
   className?: string;
 };
@@ -26,6 +27,7 @@ function WordEditor({
   currentTimeMs,
   onUpdateCaption,
   onSplitCaption,
+  onMergeCaption,
   onSeek,
   className,
 }: Props) {
@@ -127,6 +129,13 @@ function WordEditor({
       onSplitCaption?.(captionId, wordIndex, mode);
     },
     [onSplitCaption]
+  );
+
+  const handleMerge = useCallback(
+    (captionId: string, direction: 'up' | 'down') => {
+      onMergeCaption?.(captionId, direction);
+    },
+    [onMergeCaption]
   );
 
   const handleKeyDown = useCallback(
@@ -268,33 +277,63 @@ function WordEditor({
               <span className={styles.captionTime}>
                 {formatTime(caption.startMs)} → {formatTime(caption.endMs)}
               </span>
-              {isSelected &&
-                selectedWordIndex !== null &&
-                selectedWordIndex > 0 &&
-                onSplitCaption && (
-                  <div className={styles.captionActions}>
+              <div className={styles.captionActions}>
+                {onMergeCaption && (
+                  <>
                     <button
                       type="button"
                       className={styles.iconButton}
-                      onClick={() =>
-                        handleSplit(caption.id, selectedWordIndex, 'newline')
+                      onClick={() => handleMerge(caption.id, 'up')}
+                      title="이전 자막과 합치기"
+                      disabled={
+                        captions.findIndex((c) => c.id === caption.id) === 0
                       }
-                      title="줄바꿈 삽입 (선택한 단어 앞에 줄바꿈)"
                     >
-                      ↵
+                      ⬆
                     </button>
                     <button
                       type="button"
                       className={styles.iconButton}
-                      onClick={() =>
-                        handleSplit(caption.id, selectedWordIndex, 'next')
+                      onClick={() => handleMerge(caption.id, 'down')}
+                      title="다음 자막과 합치기"
+                      disabled={
+                        captions.findIndex((c) => c.id === caption.id) ===
+                        captions.length - 1
                       }
-                      title="자막 분리 (선택한 단어부터 새 자막 생성)"
                     >
-                      ✂
+                      ⬇
                     </button>
-                  </div>
+                  </>
                 )}
+
+                {isSelected &&
+                  selectedWordIndex !== null &&
+                  selectedWordIndex > 0 &&
+                  onSplitCaption && (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.iconButton}
+                        onClick={() =>
+                          handleSplit(caption.id, selectedWordIndex, 'newline')
+                        }
+                        title="줄바꿈 삽입 (선택한 단어 앞에 줄바꿈)"
+                      >
+                        ↵
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.iconButton}
+                        onClick={() =>
+                          handleSplit(caption.id, selectedWordIndex, 'next')
+                        }
+                        title="자막 분리 (선택한 단어부터 새 자막 생성)"
+                      >
+                        ✂
+                      </button>
+                    </>
+                  )}
+              </div>
             </div>
 
             <div className={styles.wordList}>

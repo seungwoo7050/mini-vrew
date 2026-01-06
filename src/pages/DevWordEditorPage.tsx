@@ -1,7 +1,10 @@
 import { useState, useCallback } from 'react';
 
 import WordEditor from '@/features/captions/WordEditor';
-import { applySplitCaption } from '@/features/captions/captionOps';
+import {
+  applySplitCaption,
+  applyMergeCaption,
+} from '@/features/captions/captionOps';
 import type { Caption } from '@/data/types';
 
 const sampleCaptions: Caption[] = [
@@ -21,6 +24,14 @@ export default function DevWordEditorPage() {
   const onSplitCaption = useCallback(
     (captionId: string, wordIndex: number, mode: 'newline' | 'next') => {
       const updated = applySplitCaption(captions, captionId, wordIndex, mode);
+      if (updated) setCaptions(updated);
+    },
+    [captions]
+  );
+
+  const onMergeCaption = useCallback(
+    (captionId: string, direction: 'up' | 'down') => {
+      const updated = applyMergeCaption(captions, captionId, direction);
       if (updated) setCaptions(updated);
     },
     [captions]
@@ -48,6 +59,7 @@ export default function DevWordEditorPage() {
         currentTimeMs={currentTimeMs}
         onUpdateCaption={onUpdateCaption}
         onSplitCaption={onSplitCaption}
+        onMergeCaption={onMergeCaption}
         onSeek={(t) => setCurrentTimeMs(t)}
       />
 

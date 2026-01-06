@@ -83,7 +83,6 @@ export function applySplitCaption(
       .sort((a, b) => a.startMs - b.startMs);
   }
 
-  // mode === 'next'
   const result = splitCaptionNext(target, wordIndex);
   if (!result) return null;
 
@@ -92,4 +91,43 @@ export function applySplitCaption(
   return captions
     .flatMap((c) => (c.id === captionId ? [first, second] : [c]))
     .sort((a, b) => a.startMs - b.startMs);
+}
+
+export function mergeCaptions(a: Caption, b: Caption): Caption {
+  const wordsA = computeFallbackWordTimings(a);
+  const wordsB = computeFallbackWordTimings(b);
+  const mergedWords = [...wordsA, ...wordsB].sort(
+    (x, y) => x.startMs - y.startMs
+  );
+
+  return {
+    ...a,
+    startMs: Math.min(a.startMs, b.startMs),
+    endMs: Math.max(a.endMs, b.endMs),
+    text: mergedWords.map((w) => w.text).join(' '),
+    words: mergedWords,
+  };
+}
+
+export function applyMergeCaption(
+  captions: Caption[],
+  captionId: string,
+  direction: 'up' | 'down'
+): Caption[] | null {
+  const sorted = [...captions].sort((a, b) => a.startMs - b.startMs);
+  const idx = sorted.findIndex((c) => c.id === captionId);
+  if (idx === -1) return null;
+
+  const neighborIdx = direction === 'up' ? idx - 1 : idx + 1;
+  if (neighborIdx < 0 || neighborIdx >= sorted.length) return null;
+
+  const a = direction === 'up' ? sorted[neighborIdx] : sorted[idx];
+  const b = direction === 'up' ? sorted[idx] : sorted[neighborIdx];
+
+  const merged = mergeCaptions(a, b);
+
+  return sorted
+    .filter((_, i) => i !== idx && i !== neighborIdx)
+    .concat(merged)
+    .sort((x, y) => x.startMs - y.startMs);
 }
