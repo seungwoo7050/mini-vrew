@@ -44,6 +44,17 @@ function WordEditor({
   const [editText, setEditText] = useState('');
 
   const editInputRef = useRef<HTMLInputElement>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const draggingRef = useRef<{
+    captionId: string;
+    boundaryIndex: number;
+    rect: DOMRect;
+    captionStartMs: number;
+    captionEndMs: number;
+    initialWords: CaptionWord[];
+  } | null>(null);
+
+  const MIN_WORD_MS = 10;
 
   const activeCaptionId = useMemo(() => {
     const found = captions.find(
@@ -386,7 +397,7 @@ function WordEditor({
             </div>
 
             {isSelected && words.length > 0 && (
-              <div className={styles.timelineStrip}>
+              <div className={styles.timelineStrip} ref={timelineRef}>
                 {words.map((word, idx) => {
                   const captionDuration = caption.endMs - caption.startMs;
                   if (captionDuration <= 0) return null;
@@ -395,6 +406,66 @@ function WordEditor({
                     ((word.startMs - caption.startMs) / captionDuration) * 100;
                   const width =
                     ((word.endMs - word.startMs) / captionDuration) * 100;
+
+                  const startDrag = (e: React.MouseEvent) => {
+                    e.preventDefault();
+                    const rect = timelineRef.current!.getBoundingClientRect();
+                    draggingRef.current = {
+                      captionId: caption.id,
+                      boundaryIndex: idx,
+                      rect,
+                      captionStartMs: caption.startMs,
+                      captionEndMs: caption.endMs,
+                      initialWords: getCaptionWords(caption).map((w) => ({
+                        ...w,
+                      })),
+                    };
+
+                    const onMove = (moveEvent: MouseEvent) => {
+                      const d = draggingRef.current;
+                      if (!d) return;
+                      const x = Math.min(
+                        Math.max(moveEvent.clientX, d.rect.left),
+                        d.rect.right
+                      );
+                      const pct = (x - d.rect.left) / d.rect.width;
+                      const time = Math.round(
+                        d.captionStartMs +
+                          pct * (d.captionEndMs - d.captionStartMs)
+                      );
+
+                      const wordsCopy = d.initialWords.map((w) => ({ ...w }));
+
+                      const leftMin =
+                        idx === 0
+                          ? d.captionStartMs + MIN_WORD_MS
+                          : wordsCopy[idx - 1].startMs + MIN_WORD_MS;
+                      const rightMax =
+                        idx + 1 === wordsCopy.length
+                          ? d.captionEndMs - MIN_WORD_MS
+                          : wordsCopy[idx + 1].endMs - MIN_WORD_MS;
+
+                      const clamped = Math.min(
+                        Math.max(time, leftMin),
+                        rightMax
+                      );
+
+                      wordsCopy[idx].endMs = clamped;
+                      if (wordsCopy[idx + 1])
+                        wordsCopy[idx + 1].startMs = clamped;
+
+                      onUpdateCaption({ ...caption, words: wordsCopy });
+                    };
+
+                    const onUp = () => {
+                      draggingRef.current = null;
+                      window.removeEventListener('mousemove', onMove);
+                      window.removeEventListener('mouseup', onUp);
+                    };
+
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                  };
 
                   return (
                     <div
@@ -407,6 +478,16 @@ function WordEditor({
                       title={word.text}
                     >
                       {width > 8 ? word.text : ''}
+
+                      {idx < words.length - 1 && (
+                        <div
+                          className={`${styles.resizeHandle} ${styles.resizeHandleRight}`}
+                          onMouseDown={startDrag}
+                          role="separator"
+                          aria-orientation="vertical"
+                          aria-label="Resize word boundary"
+                        />
+                      )}
                     </div>
                   );
                 })}
