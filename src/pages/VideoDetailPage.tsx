@@ -29,7 +29,6 @@ function VideoDetailPage() {
   const { data: videoBlob } = useVideoBlobQuery(videoId);
   const { data: thumbnailBlob } = useThumbnailBlobQuery(videoId);
   const { data: captions = [] } = useCaptionsQuery(videoId);
-  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const [isThumbnailCollapsed, setIsThumbnailCollapsed] = useState(false);
   const deleteVideo = useDeleteVideoMutation();
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +68,6 @@ function VideoDetailPage() {
   const handleVideoRef = useCallback(
     (el: HTMLVideoElement | null) => {
       playerRef(el);
-      setVideoEl(el);
     },
     [playerRef]
   );
@@ -595,7 +593,12 @@ function VideoDetailPage() {
           </div>
         </article>
         <article className={`${styles.panel} ${styles.captionColumn}`}>
-          <CaptionsPanel videoId={videoId} videoTitle={video.title} />
+          <CaptionsPanel
+            videoId={videoId}
+            videoTitle={video.title}
+            currentTimeMs={playerView.currentTimeMs}
+            onSeek={playerActions.seek}
+          />
         </article>
       </div>
     </section>

@@ -6,6 +6,8 @@ import { parseCaptions, sortCaptions, toSrt } from './format';
 import { useCaptionsQuery, useSaveCaptionsMutation } from './queries';
 import styles from './CaptionsPanel.module.css';
 import { formatTimecode, parseTimecode } from './time';
+import WordEditor from './WordEditor';
+import { applySplitCaption, applyMergeCaption } from './captionOps';
 
 const EMPTY_CAPTION: Caption = {
   id: 'cap_new',
@@ -44,17 +46,16 @@ function sanitizeCaptions(captions: Caption[]): Caption[] {
 type Props = {
   videoId: VideoId;
   videoTitle: string;
+  currentTimeMs: number;
+  onSeek?: (timeMs: number) => void;
 };
 
-function CaptionsPanel({ videoId, videoTitle }: Props) {
+function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
   const [drafts, setDrafts] = useState<Caption[]>([EMPTY_CAPTION]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isWordEditorMode, setIsWordEditorMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const startRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const endRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
-  const pendingFocusId = useRef<string | null>(null);
 
   const captionsQuery = useCaptionsQuery(videoId);
   const { data, isPending, isError } = captionsQuery;
@@ -67,17 +68,6 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
       setDrafts(populated.map((caption) => ({ ...caption })));
     }
   }, [data]);
-
-  useEffect(() => {
-    if (!pendingFocusId.current) return;
-    const textarea = textareaRefs.current[pendingFocusId.current];
-    if (textarea) {
-      textarea.focus();
-      const length = textarea.value.length;
-      textarea.setSelectionRange(length, length);
-    }
-    pendingFocusId.current = null;
-  }, [drafts]);
 
   const heading = useMemo(
     () => (drafts.length ? `자막 ${drafts.length}개` : '자막 없음'),
@@ -95,24 +85,28 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
     );
   };
 
-  const collectDraftsFromInputs = useCallback(() => {
-    return drafts.map((cap) => {
-      const startRaw =
-        startRefs.current[cap.id]?.value ?? formatTimecode(cap.startMs);
-      const endRaw =
-        endRefs.current[cap.id]?.value ?? formatTimecode(cap.endMs);
-      return {
-        ...cap,
-        startMs: parseTimecode(startRaw) ?? cap.startMs,
-        endMs: parseTimecode(endRaw) ?? cap.endMs,
-        text: textareaRefs.current[cap.id]?.value ?? cap.text,
-      };
-    });
-  }, [drafts]);
+  const onUpdateCaption = useCallback((caption: Caption) => {
+    setDrafts((prev) => prev.map((c) => (c.id === caption.id ? caption : c)));
+  }, []);
+
+  const onSplitCaption = useCallback(
+    (captionId: string, wordIndex: number, mode: 'newline' | 'next') => {
+      const updated = applySplitCaption(drafts, captionId, wordIndex, mode);
+      if (updated) setDrafts(updated);
+    },
+    [drafts]
+  );
+
+  const onMergeCaption = useCallback(
+    (captionId: string, direction: 'up' | 'down') => {
+      const updated = applyMergeCaption(drafts, captionId, direction);
+      if (updated) setDrafts(updated);
+    },
+    [drafts]
+  );
 
   const handleAdd = (anchorMs?: number | null) => {
-    const current = collectDraftsFromInputs();
-    const last = sortCaptions(current).at(-1);
+    const last = sortCaptions(drafts).at(-1);
     const playhead = anchorMs ?? getPlaybackTimeMs();
     const startMs = Number.isFinite(playhead)
       ? Math.max(0, playhead as number)
@@ -121,16 +115,14 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
         : 0;
     const endMs = startMs + 2000;
     const id = nextId();
-    pendingFocusId.current = id;
-    setDrafts([...current, { ...EMPTY_CAPTION, id, startMs, endMs }]);
+    setDrafts([...drafts, { ...EMPTY_CAPTION, id, startMs, endMs }]);
     return id;
   };
 
   const handleDelete = (id: string) => {
     setDrafts((prev) => {
       if (prev.length === 1) return prev;
-      const current = collectDraftsFromInputs();
-      return current.filter((cap) => cap.id !== id);
+      return prev.filter((cap) => cap.id !== id);
     });
   };
 
@@ -161,7 +153,7 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
   };
 
   const handleExport = () => {
-    const safe = sanitizeCaptions(collectDraftsFromInputs());
+    const safe = sanitizeCaptions(drafts);
     setDrafts(safe);
     if (!safe.length) {
       setError('내보낼 자막이 없습니다.');
@@ -180,7 +172,7 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
   const handleSave = async () => {
     setMessage(null);
     setError(null);
-    const prepared = sanitizeCaptions(collectDraftsFromInputs());
+    const prepared = sanitizeCaptions(drafts);
     setDrafts(prepared);
     try {
       await saveMutation.mutateAsync(prepared);
@@ -231,6 +223,13 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
       <div className={styles.header}>
         <h3 className={styles.title}>{heading}</h3>
         <div className={styles.actions}>
+          <button
+            className={styles.button}
+            type="button"
+            onClick={() => setIsWordEditorMode(!isWordEditorMode)}
+          >
+            {isWordEditorMode ? '기본 편집기로 전환' : '단어 편집기로 전환'}
+          </button>
           <button
             className={styles.button}
             type="button"
@@ -285,55 +284,69 @@ function CaptionsPanel({ videoId, videoTitle }: Props) {
         시간은 HH:MM:SS,mmm 또는 HH:MM:SS.mmm 형식을 지원합니다.
       </p>
 
-      <div className={styles.list}>
-        {drafts.map((caption) => (
-          <div key={caption.id} className={styles.row}>
-            <input
-              key={`${caption.id}-start-${caption.startMs}`}
-              ref={(el) => {
-                startRefs.current[caption.id] = el;
-              }}
-              className={styles.input}
-              type="text"
-              value={formatTimecode(caption.startMs)}
-              aria-label="시작 시간"
-              onChange={(e) =>
-                updateField(caption.id, 'startMs', e.target.value)
-              }
-            />
-            <input
-              key={`${caption.id}-end-${caption.endMs}`}
-              ref={(el) => {
-                endRefs.current[caption.id] = el;
-              }}
-              className={styles.input}
-              type="text"
-              value={formatTimecode(caption.endMs)}
-              aria-label="종료 시간"
-              onChange={(e) => updateField(caption.id, 'endMs', e.target.value)}
-            />
-            <button
-              className={styles.smallButton}
-              type="button"
-              onClick={() => handleDelete(caption.id)}
-              disabled={saving}
-            >
-              삭제
-            </button>
-            <textarea
-              key={`${caption.id}-text`}
-              ref={(el) => {
-                textareaRefs.current[caption.id] = el;
-              }}
-              className={styles.textarea}
-              value={caption.text}
-              aria-label="자막 내용"
-              onChange={(e) => updateField(caption.id, 'text', e.target.value)}
-              onKeyDown={(e) => handleTextareaKeyDown(e, caption.id)}
-            />
-          </div>
-        ))}
-      </div>
+      {isWordEditorMode ? (
+        <WordEditor
+          captions={drafts}
+          currentTimeMs={currentTimeMs}
+          onUpdateCaption={onUpdateCaption}
+          onSplitCaption={onSplitCaption}
+          onMergeCaption={onMergeCaption}
+          onDeleteCaption={handleDelete}
+          onSeek={onSeek}
+        />
+      ) : (
+        <div className={styles.list}>
+          {drafts.map((caption) => {
+            const isActive =
+              currentTimeMs >= caption.startMs && currentTimeMs < caption.endMs;
+            return (
+              <div
+                key={caption.id}
+                className={`${styles.row} ${isActive ? styles.rowActive : ''}`}
+              >
+                <input
+                  key={`${caption.id}-start-${caption.startMs}`}
+                  className={styles.input}
+                  type="text"
+                  value={formatTimecode(caption.startMs)}
+                  aria-label="시작 시간"
+                  onChange={(e) =>
+                    updateField(caption.id, 'startMs', e.target.value)
+                  }
+                />
+                <input
+                  key={`${caption.id}-end-${caption.endMs}`}
+                  className={styles.input}
+                  type="text"
+                  value={formatTimecode(caption.endMs)}
+                  aria-label="종료 시간"
+                  onChange={(e) =>
+                    updateField(caption.id, 'endMs', e.target.value)
+                  }
+                />
+                <button
+                  className={styles.smallButton}
+                  type="button"
+                  onClick={() => handleDelete(caption.id)}
+                  disabled={saving}
+                >
+                  삭제
+                </button>
+                <textarea
+                  key={`${caption.id}-text`}
+                  className={styles.textarea}
+                  value={caption.text}
+                  aria-label="자막 내용"
+                  onChange={(e) =>
+                    updateField(caption.id, 'text', e.target.value)
+                  }
+                  onKeyDown={(e) => handleTextareaKeyDown(e, caption.id)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {message && <p className={styles.status}>{message}</p>}
       {error && <p className={styles.error}>{error}</p>}

@@ -14,6 +14,7 @@ type Props = {
     mode: 'newline' | 'next'
   ) => void;
   onMergeCaption?: (captionId: string, direction: 'up' | 'down') => void;
+  onDeleteCaption?: (captionId: string) => void;
   onSeek?: (timeMs: number) => void;
   className?: string;
 };
@@ -28,6 +29,7 @@ function WordEditor({
   onUpdateCaption,
   onSplitCaption,
   onMergeCaption,
+  onDeleteCaption,
   onSeek,
   className,
 }: Props) {
@@ -315,6 +317,18 @@ function WordEditor({
                       ⬇
                     </button>
                   </>
+                )}
+
+                {onDeleteCaption && (
+                  <button
+                    type="button"
+                    className={`${styles.iconButton} ${styles.iconButtonDanger}`}
+                    onClick={() => onDeleteCaption(caption.id)}
+                    title="자막 삭제"
+                    disabled={captions.length === 1}
+                  >
+                    ✖
+                  </button>
                 )}
 
                 {isSelected &&
