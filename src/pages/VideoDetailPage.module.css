@@ -377,3 +377,78 @@
     max-height: none;
   }
 }
+
+.filterSection {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.1);
+  border-radius: 8px;
+  background: rgba(226, 232, 240, 0.02);
+}
+
+.filterToggle {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.15);
+  border-radius: 6px;
+  background: #14a1c8;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.filterControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.filterItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filterLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #0b1220;
+  min-width: 60px;
+}
+
+.filterSlider {
+  width: 120px;
+  accent-color: #6366f1;
+}
+
+.filterValue {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+}
+
+.filterResetButton {
+  padding: 4px 8px;
+  border: 0px;
+  background: #fca5a5;
+  color: #ffffff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  user-select: none;
+}
+
+.filterResetButton:hover {
+  background: #f87171;
+}
+
+.filterError {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}

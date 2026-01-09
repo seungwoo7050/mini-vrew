@@ -18,6 +18,7 @@ import {
   type RecommendationMode,
   type TrimRecommendation,
 } from '@/features/waveform/trimRecommendations';
+import { useFilterState, useWebGLPreview } from '@/features/filters';
 import styles from './VideoDetailPage.module.css';
 
 function VideoDetailPage() {
@@ -30,6 +31,7 @@ function VideoDetailPage() {
   const { data: thumbnailBlob } = useThumbnailBlobQuery(videoId);
   const { data: captions = [] } = useCaptionsQuery(videoId);
   const [isThumbnailCollapsed, setIsThumbnailCollapsed] = useState(false);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const deleteVideo = useDeleteVideoMutation();
   const [error, setError] = useState<string | null>(null);
   const [isTrimGuardEnabled, setIsTrimGuardEnabled] = useState(false);
@@ -38,6 +40,20 @@ function VideoDetailPage() {
   const [recommendCount, setRecommendCount] = useState(2);
   const waveformWrapperRef = useRef<HTMLDivElement | null>(null);
   const [waveformWidth, setWaveformWidth] = useState(0);
+
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
+  const [videoSize, setVideoSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const filter = useFilterState();
+  const { canvasRef: webglCanvasRef, status: webglStatus } = useWebGLPreview({
+    videoEl,
+    enabled: Object.values(filter.state.filters).some((f) => f.enabled),
+    filters: filter.state.filters,
+    videoSize,
+  });
 
   const videoUrl = useMemo(() => {
     if (!videoBlob) return null;
@@ -68,9 +84,31 @@ function VideoDetailPage() {
   const handleVideoRef = useCallback(
     (el: HTMLVideoElement | null) => {
       playerRef(el);
+      setVideoEl(el);
     },
     [playerRef]
   );
+
+  useEffect(() => {
+    if (!videoEl) return;
+
+    const handleLoadedMetadata = () => {
+      setVideoSize({
+        width: videoEl.clientWidth || videoEl.videoWidth,
+        height: videoEl.clientHeight || videoEl.videoHeight,
+      });
+    };
+
+    if (videoEl.readyState >= 1) {
+      handleLoadedMetadata();
+    } else {
+      videoEl.addEventListener('loadedmetadata', handleLoadedMetadata);
+    }
+
+    return () => {
+      videoEl.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [videoEl]);
 
   const waveform = useWaveformPeaks({
     videoBlob: videoBlob ?? null,
@@ -356,7 +394,15 @@ function VideoDetailPage() {
                     poster={thumbnailUrl ?? undefined}
                     playsInline
                     controls
+                    crossOrigin="anonymous"
                     className={styles.playerVideo}
+                    style={{
+                      display: Object.values(filter.state.filters).some(
+                        (f) => f.enabled
+                      )
+                        ? 'none'
+                        : 'block',
+                    }}
                     data-testid="video-element"
                     onClick={(e) => {
                       if (e.target === e.currentTarget) {
@@ -366,6 +412,14 @@ function VideoDetailPage() {
                       }
                     }}
                   />
+                  {Object.values(filter.state.filters).some(
+                    (f) => f.enabled
+                  ) && (
+                    <canvas
+                      ref={webglCanvasRef}
+                      className={styles.playerVideo}
+                    />
+                  )}
                   <SubtitleOverlay
                     captions={captions}
                     currentTimeMs={playerView.currentTimeMs}
@@ -384,6 +438,114 @@ function VideoDetailPage() {
                 >
                   비디오 로딩 중...
                 </div>
+              )}
+            </div>
+
+            <div className={styles.filterSection}>
+              <button
+                className={styles.filterToggle}
+                onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+                type="button"
+              >
+                필터 {isFilterExpanded ? '접기' : '펼치기'}
+              </button>
+              {isFilterExpanded && (
+                <div className={styles.filterControls}>
+                  <div className={styles.filterItem}>
+                    <label className={styles.filterLabel}>
+                      <input
+                        type="checkbox"
+                        checked={filter.state.filters.grayscale.enabled}
+                        onChange={filter.actions.toggleGrayscale}
+                      />
+                      흑백
+                    </label>
+                    <input
+                      type="range"
+                      className={styles.filterSlider}
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={filter.state.filters.grayscale.amount}
+                      onChange={(e) =>
+                        filter.actions.setGrayscaleAmount(
+                          parseFloat(e.target.value)
+                        )
+                      }
+                      disabled={!filter.state.filters.grayscale.enabled}
+                    />
+                    <span className={styles.filterValue}>
+                      {filter.state.filters.grayscale.amount.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className={styles.filterItem}>
+                    <label className={styles.filterLabel}>
+                      <input
+                        type="checkbox"
+                        checked={filter.state.filters.brightness.enabled}
+                        onChange={filter.actions.toggleBrightness}
+                      />
+                      밝기
+                    </label>
+                    <input
+                      type="range"
+                      className={styles.filterSlider}
+                      min="-1"
+                      max="1"
+                      step="0.01"
+                      value={filter.state.filters.brightness.amount}
+                      onChange={(e) =>
+                        filter.actions.setBrightnessAmount(
+                          parseFloat(e.target.value)
+                        )
+                      }
+                      disabled={!filter.state.filters.brightness.enabled}
+                    />
+                    <span className={styles.filterValue}>
+                      {filter.state.filters.brightness.amount.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className={styles.filterItem}>
+                    <label className={styles.filterLabel}>
+                      <input
+                        type="checkbox"
+                        checked={filter.state.filters.contrast.enabled}
+                        onChange={filter.actions.toggleContrast}
+                      />
+                      대비
+                    </label>
+                    <input
+                      type="range"
+                      className={styles.filterSlider}
+                      min="-1"
+                      max="1"
+                      step="0.01"
+                      value={filter.state.filters.contrast.amount}
+                      onChange={(e) =>
+                        filter.actions.setContrastAmount(
+                          parseFloat(e.target.value)
+                        )
+                      }
+                      disabled={!filter.state.filters.contrast.enabled}
+                    />
+                    <span className={styles.filterValue}>
+                      {filter.state.filters.contrast.amount.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <button
+                    className={styles.filterResetButton}
+                    type="button"
+                    onClick={filter.actions.reset}
+                  >
+                    초기화
+                  </button>
+                </div>
+              )}
+              {!webglStatus.supported && isFilterExpanded && (
+                <p className={styles.filterError}>{webglStatus.error}</p>
               )}
             </div>
 
