@@ -3,14 +3,14 @@ export type JobId = string;
 export type TrimPayload = {
   inputBlob: Blob;
   startMs: number;
-  endMs: number;
+  endMs?: number | null;
   outputFormat?: 'mp4' | 'webm';
 };
 
 export type BurninPayload = {
   inputBlob: Blob;
   startMs: number;
-  endMs: number;
+  endMs?: number | null;
   srtContent: string;
   outputFormat?: 'mp4' | 'webm';
   videoFilter?: string;

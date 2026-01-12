@@ -9,7 +9,7 @@ import {
   trimVideo,
   cancelCurrentJob,
 } from './ffmpegClient';
-import { adjustSrtForTrim, captionsToSrt } from './srtUtils';
+import { captionsToAss, adjustAssForTrim } from './srtUtils';
 
 export type ExportState = {
   status: 'idle' | 'initializing' | 'exporting' | 'completed' | 'error';
@@ -56,21 +56,25 @@ export function useVideoExport(): UseVideoExportReturn {
 
     queueMicrotask(() => {
       if (alreadyReady) {
+        console.log('[export] Setting isReady to true (already ready)');
         setIsReady(true);
         return;
       }
 
+      console.log('[export] Setting status to initializing');
       setState((s) => ({ ...s, status: 'initializing' }));
 
+      console.log('[export] Initializing FFmpeg worker');
       initFFmpegWorker()
         .then(() => {
+          console.log('[export] FFmpeg worker initialized successfully');
           setIsReady(true);
           setState((s) =>
             s.status === 'initializing' ? { ...s, status: 'idle' } : s
           );
         })
         .catch((err) => {
-          console.error('[useVideoExport] Init failed:', err);
+          console.error('[export] Failed to initialize FFmpeg worker:', err);
           setState({
             status: 'error',
             progress: 0,
@@ -79,8 +83,7 @@ export function useVideoExport(): UseVideoExportReturn {
         });
     });
 
-    return () => {
-    };
+    return () => {};
   }, []);
 
   const handleProgress = useCallback((progress: ProgressData) => {
@@ -93,6 +96,7 @@ export function useVideoExport(): UseVideoExportReturn {
 
   const startExport = useCallback(
     async (options: ExportOptions) => {
+      console.log('[export] startExport called with options:', options);
       const {
         videoBlob,
         trimRange,
@@ -103,6 +107,7 @@ export function useVideoExport(): UseVideoExportReturn {
       } = options;
 
       if (!isFFmpegReady()) {
+        console.error('[export] FFmpeg not ready');
         setState({
           status: 'error',
           progress: 0,
@@ -111,26 +116,30 @@ export function useVideoExport(): UseVideoExportReturn {
         return;
       }
 
+      console.log('[export] Setting status to exporting');
       setState({ status: 'exporting', progress: 0, stage: 'starting' });
 
       try {
+        console.log('[export] Starting export process');
         const startMs = trimRange?.startMs ?? 0;
         const endMs = trimRange?.endMs ?? 0;
         const hasTrim = trimRange && endMs > startMs;
+        console.log('[export] Trim range:', { startMs, endMs, hasTrim });
 
         let result: CompletedData;
 
         if (includeSubtitles && captions.length > 0) {
-          const srtContent = hasTrim
-            ? adjustSrtForTrim(captions, startMs, endMs)
-            : captionsToSrt(captions);
+          const assContent = hasTrim
+            ? adjustAssForTrim(captions, startMs, endMs)
+            : captionsToAss(captions);
+          console.log('[export] ASS content:', assContent);
 
           result = await exportWithSubtitles(
             {
               inputBlob: videoBlob,
               startMs: hasTrim ? startMs : 0,
-              endMs: hasTrim ? endMs : Infinity,
-              srtContent,
+              endMs: hasTrim ? endMs : undefined,
+              srtContent: assContent,
               outputFormat,
               videoFilter,
             },
@@ -162,8 +171,10 @@ export function useVideoExport(): UseVideoExportReturn {
           outputBlob: result.outputBlob,
           elapsedMs: result.elapsedMs,
         });
+        console.log('[export] Export completed successfully');
       } catch (err) {
         const error = err as ErrorData;
+        console.error('[export] Export failed:', error);
         setState({
           status: 'error',
           progress: 0,

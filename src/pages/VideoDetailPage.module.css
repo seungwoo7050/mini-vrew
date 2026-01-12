@@ -452,3 +452,99 @@
   font-size: 0.85rem;
   margin: 8px 0 0;
 }
+
+.exportSection {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 10px;
+  background: #ffffff;
+  display: grid;
+  gap: 10px;
+}
+
+.exportControls {
+  display: grid;
+  gap: 10px;
+}
+
+.exportOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #0b1220;
+  font-size: 0.95rem;
+}
+
+.exportActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.exportButton {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(20, 161, 200, 0.2);
+  background: #14a1c8;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(20, 161, 200, 0.25);
+}
+
+.exportButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.exportGhostButton {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #ffffff;
+  color: #0b1220;
+  cursor: pointer;
+}
+
+.exportGhostButton:hover {
+  background: #f8fafc;
+}
+
+.exportHint {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.exportProgress {
+  display: grid;
+  gap: 6px;
+}
+
+.exportProgressBar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+}
+
+.exportProgressBar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #14a1c8, #38bdf8);
+}
+
+.exportStatus {
+  color: #0b1220;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.exportError {
+  color: #ef4444;
+  font-size: 0.9rem;
+  margin: 0;
+}

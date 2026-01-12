@@ -7,6 +7,13 @@ import { NodeModulesPolyfillPlugin } from '@esbuild-plugins/node-modules-polyfil
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    host: '127.0.0.1',
+    headers: {
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
@@ -18,6 +25,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util', '@ffmpeg/core'],
     esbuildOptions: {
       define: {
         global: 'globalThis'
@@ -30,5 +38,16 @@ export default defineConfig({
   },
   define: {
     global: 'globalThis'
-  }
-})
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          ffmpeg: ['@ffmpeg/ffmpeg', '@ffmpeg/util', '@ffmpeg/core'],
+        },
+      },
+    },
+  },
+  worker: {
+    format: 'es',
+  },})

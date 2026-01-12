@@ -19,6 +19,7 @@ import {
   type TrimRecommendation,
 } from '@/features/waveform/trimRecommendations';
 import { useFilterState, useWebGLPreview } from '@/features/filters';
+import { useVideoExport } from '@/features/export';
 import styles from './VideoDetailPage.module.css';
 
 function VideoDetailPage() {
@@ -34,10 +35,12 @@ function VideoDetailPage() {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const deleteVideo = useDeleteVideoMutation();
   const [error, setError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [isTrimGuardEnabled, setIsTrimGuardEnabled] = useState(false);
   const [recommendMode, setRecommendMode] =
     useState<RecommendationMode>('highlight');
   const [recommendCount, setRecommendCount] = useState(2);
+  const [includeSubtitles, setIncludeSubtitles] = useState(true);
   const waveformWrapperRef = useRef<HTMLDivElement | null>(null);
   const [waveformWidth, setWaveformWidth] = useState(0);
 
@@ -173,6 +176,8 @@ function VideoDetailPage() {
     targetSegmentMs: recommendationSegmentMs,
     onApply: (range, meta) => applyRecommendation(range, meta.autoEnableGuard),
   });
+
+  const exportController = useVideoExport();
 
   const handleDelete = async () => {
     setError(null);
@@ -323,6 +328,35 @@ function VideoDetailPage() {
     }
     setIsTrimGuardEnabled((prev) => !prev);
   }, [trim.range]);
+
+  const handleExport = useCallback(async () => {
+    if (!videoBlob) return;
+
+    if (!trim.range) {
+      setExportError('트림 구간을 먼저 설정하세요.');
+      return;
+    }
+
+    setExportError(null);
+    await exportController.startExport({
+      videoBlob,
+      trimRange: trim.range,
+      captions,
+      includeSubtitles,
+      outputFormat: 'mp4',
+    });
+  }, [videoBlob, trim.range, captions, includeSubtitles, exportController]);
+
+  const handleDownload = useCallback(() => {
+    if (!video) return;
+    const safeTitle = video.title.replace(/[\\/:*?"<>|]/g, '-');
+    exportController.downloadResult(`${safeTitle}-trim.mp4`);
+  }, [exportController, video]);
+
+  const handleResetExport = useCallback(() => {
+    exportController.reset();
+    setExportError(null);
+  }, [exportController]);
 
   if (!videoId) {
     return (
@@ -725,6 +759,109 @@ function VideoDetailPage() {
                   {'  '}({formatTime(trim.range.endMs - trim.range.startMs)})
                 </p>
               )}
+            </div>
+
+            <div className={styles.exportSection}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>내보내기</h2>
+              </div>
+              <div className={styles.exportControls}>
+                <label className={styles.exportOption}>
+                  <input
+                    type="checkbox"
+                    checked={includeSubtitles}
+                    onChange={(e) => setIncludeSubtitles(e.target.checked)}
+                    disabled={
+                      exportController.state.status === 'exporting' ||
+                      exportController.state.status === 'initializing'
+                    }
+                  />
+                  자막 포함해서 내보내기
+                </label>
+                <div className={styles.exportActions}>
+                  <button
+                    type="button"
+                    className={styles.exportButton}
+                    onClick={handleExport}
+                    disabled={
+                      !exportController.isReady ||
+                      !videoBlob ||
+                      !trim.range ||
+                      exportController.state.status === 'exporting' ||
+                      exportController.state.status === 'initializing'
+                    }
+                  >
+                    {exportController.state.status === 'initializing'
+                      ? 'FFmpeg 준비 중...'
+                      : exportController.state.status === 'exporting'
+                        ? '내보내는 중...'
+                        : '트림 구간 내보내기'}
+                  </button>
+                  {exportController.state.status === 'exporting' && (
+                    <button
+                      type="button"
+                      className={styles.exportGhostButton}
+                      onClick={exportController.cancel}
+                    >
+                      취소
+                    </button>
+                  )}
+                  {exportController.state.status === 'completed' && (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.exportGhostButton}
+                        onClick={handleDownload}
+                      >
+                        다운로드
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.exportGhostButton}
+                        onClick={handleResetExport}
+                      >
+                        다시 내보내기
+                      </button>
+                    </>
+                  )}
+                </div>
+                {!trim.range && (
+                  <p className={styles.exportHint}>
+                    트림 구간을 설정하면 잘라서 내보낼 수 있습니다.
+                  </p>
+                )}
+                {exportController.state.status === 'exporting' && (
+                  <div className={styles.exportProgress}>
+                    <div className={styles.exportProgressBar}>
+                      <span
+                        style={{
+                          width: `${Math.round(
+                            exportController.state.progress * 100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                    <p className={styles.exportStatus}>
+                      {exportController.state.stage ?? '처리 중'} ·{' '}
+                      {Math.round(exportController.state.progress * 100)}%
+                    </p>
+                  </div>
+                )}
+                {exportController.state.status === 'completed' && (
+                  <p className={styles.exportStatus}>
+                    내보내기 완료! 다운로드를 진행하세요.
+                  </p>
+                )}
+                {exportController.state.status === 'error' && (
+                  <p className={styles.exportError}>
+                    {exportController.state.error ??
+                      '내보내기 중 오류가 발생했습니다.'}
+                  </p>
+                )}
+                {exportError && (
+                  <p className={styles.exportError}>{exportError}</p>
+                )}
+              </div>
             </div>
 
             <div className={styles.thumbBlock}>
