@@ -476,6 +476,13 @@
   font-size: 0.95rem;
 }
 
+.exportModeOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .exportActions {
   display: flex;
   flex-wrap: wrap;

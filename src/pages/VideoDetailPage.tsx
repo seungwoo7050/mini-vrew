@@ -41,6 +41,7 @@ function VideoDetailPage() {
     useState<RecommendationMode>('highlight');
   const [recommendCount, setRecommendCount] = useState(2);
   const [includeSubtitles, setIncludeSubtitles] = useState(true);
+  const [exportMode, setExportMode] = useState<'trim' | 'cutout'>('trim');
   const waveformWrapperRef = useRef<HTMLDivElement | null>(null);
   const [waveformWidth, setWaveformWidth] = useState(0);
 
@@ -344,14 +345,17 @@ function VideoDetailPage() {
       captions,
       includeSubtitles,
       outputFormat: 'mp4',
+      exportMode,
+      durationMs: playerView.durationMs,
     });
   }, [videoBlob, trim.range, captions, includeSubtitles, exportController]);
 
   const handleDownload = useCallback(() => {
     if (!video) return;
     const safeTitle = video.title.replace(/[\\/:*?"<>|]/g, '-');
-    exportController.downloadResult(`${safeTitle}-trim.mp4`);
-  }, [exportController, video]);
+    const suffix = exportMode === 'cutout' ? '-cutout' : '-trim';
+    exportController.downloadResult(`${safeTitle}${suffix}.mp4`);
+  }, [exportController, video, exportMode]);
 
   const handleResetExport = useCallback(() => {
     exportController.reset();
@@ -778,6 +782,38 @@ function VideoDetailPage() {
                   />
                   자막 포함해서 내보내기
                 </label>
+                <div className={styles.exportModeOptions}>
+                  <label className={styles.exportOption}>
+                    <input
+                      type="radio"
+                      name="exportMode"
+                      value="trim"
+                      checked={exportMode === 'trim'}
+                      onChange={(e) => setExportMode(e.target.value as 'trim')}
+                      disabled={
+                        exportController.state.status === 'exporting' ||
+                        exportController.state.status === 'initializing'
+                      }
+                    />
+                    트림 구간만 내보내기
+                  </label>
+                  <label className={styles.exportOption}>
+                    <input
+                      type="radio"
+                      name="exportMode"
+                      value="cutout"
+                      checked={exportMode === 'cutout'}
+                      onChange={(e) =>
+                        setExportMode(e.target.value as 'cutout')
+                      }
+                      disabled={
+                        exportController.state.status === 'exporting' ||
+                        exportController.state.status === 'initializing'
+                      }
+                    />
+                    트림 구간을 제외하고 내보내기
+                  </label>
+                </div>
                 <div className={styles.exportActions}>
                   <button
                     type="button"
@@ -795,7 +831,7 @@ function VideoDetailPage() {
                       ? 'FFmpeg 준비 중...'
                       : exportController.state.status === 'exporting'
                         ? '내보내는 중...'
-                        : '트림 구간 내보내기'}
+                        : '내보내기'}
                   </button>
                   {exportController.state.status === 'exporting' && (
                     <button

@@ -7,6 +7,17 @@ export type TrimPayload = {
   outputFormat?: 'mp4' | 'webm';
 };
 
+export type CutoutPayload = {
+  inputBlob: Blob;
+  /** Start of the section to remove (ms) */
+  cutStartMs: number;
+  /** End of the section to remove (ms) */
+  cutEndMs: number;
+  /** Total duration of the video (ms) */
+  durationMs: number;
+  outputFormat?: 'mp4' | 'webm';
+};
+
 export type BurninPayload = {
   inputBlob: Blob;
   startMs: number;
@@ -70,6 +81,7 @@ export type JobHandle = {
 export type WorkerRequest =
   | { type: 'init' }
   | { type: 'trim'; jobId: JobId; payload: TrimPayload }
+  | { type: 'cutout'; jobId: JobId; payload: CutoutPayload }
   | { type: 'burnin'; jobId: JobId; payload: BurninPayload }
   | { type: 'probe'; jobId: JobId; payload: ProbePayload }
   | { type: 'cancel'; jobId: JobId };

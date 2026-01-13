@@ -11,6 +11,7 @@ export {
   isFFmpegReady,
   isJobRunning,
   trimVideo,
+  cutoutVideo,
   exportWithSubtitles,
   probeVideo,
   cancelCurrentJob,
@@ -26,5 +27,6 @@ export type {
   ErrorData,
   JobOptions,
   TrimPayload,
+  CutoutPayload,
   BurninPayload,
 } from './ffmpegTypes';

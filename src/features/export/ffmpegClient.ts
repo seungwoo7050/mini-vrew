@@ -7,6 +7,7 @@ import type {
   ErrorData,
   FFmpegErrorCode,
   TrimPayload,
+  CutoutPayload,
   BurninPayload,
   ProbePayload,
   WorkerRequest,
@@ -212,8 +213,8 @@ export function isJobRunning(): boolean {
 }
 
 async function startJob<T extends CompletedData | ProbeData>(
-  type: 'trim' | 'burnin' | 'probe',
-  payload: TrimPayload | BurninPayload | ProbePayload,
+  type: 'trim' | 'cutout' | 'burnin' | 'probe',
+  payload: TrimPayload | CutoutPayload | BurninPayload | ProbePayload,
   options: JobOptions = {}
 ): Promise<T> {
   if (!state.isInitialized || !state.worker) {
@@ -267,6 +268,16 @@ export async function trimVideo(
   options: JobOptions = {}
 ): Promise<CompletedData> {
   return startJob<CompletedData>('trim', payload, options);
+}
+
+/**
+ * Cut out a section from the video (keep A and C, remove B)
+ */
+export async function cutoutVideo(
+  payload: CutoutPayload,
+  options: JobOptions = {}
+): Promise<CompletedData> {
+  return startJob<CompletedData>('cutout', payload, options);
 }
 
 export async function exportWithSubtitles(

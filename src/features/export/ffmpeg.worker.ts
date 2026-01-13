@@ -6,6 +6,7 @@ import type {
   ProgressData,
   ProbeData,
   TrimPayload,
+  CutoutPayload,
   BurninPayload,
   ProbePayload,
   WorkerRequest,
@@ -353,6 +354,193 @@ async function handleTrim(jobId: JobId, payload: TrimPayload) {
   }
 }
 
+async function handleCutout(jobId: JobId, payload: CutoutPayload) {
+  const {
+    inputBlob,
+    cutStartMs,
+    cutEndMs,
+    durationMs,
+    outputFormat = 'mp4',
+  } = payload;
+
+  console.log(
+    '[ffmpeg.worker] handleCutout called with jobId:',
+    jobId,
+    'payload:',
+    payload
+  );
+  const startTime = performance.now();
+  currentJobId = jobId;
+  cancelRequested = false;
+
+  const inputFileName = 'input.mp4';
+  const part1FileName = 'part1.mp4';
+  const part2FileName = 'part2.mp4';
+  const concatFileName = 'concat.txt';
+  const outputFileName = `output.${outputFormat}`;
+  const allFiles = [
+    inputFileName,
+    part1FileName,
+    part2FileName,
+    concatFileName,
+    outputFileName,
+  ];
+
+  try {
+    sendProgress(jobId, { progress: 0.05, stage: 'initializing' });
+    await ensureFFmpegLoaded();
+    if (cancelRequested) {
+      sendCancelled(jobId);
+      return;
+    }
+
+    sendProgress(jobId, { progress: 0.1, stage: 'loading input' });
+    const inputData = await fetchFile(inputBlob);
+    await ffmpeg!.writeFile(inputFileName, inputData);
+    if (cancelRequested) {
+      await cleanup(allFiles);
+      sendCancelled(jobId);
+      return;
+    }
+
+    const videoCodec = outputFormat === 'webm' ? 'libvpx-vp9' : 'libx264';
+    const audioCodec = outputFormat === 'webm' ? 'libvorbis' : 'aac';
+
+    if (cutStartMs > 0) {
+      sendProgress(jobId, { progress: 0.2, stage: 'encoding part A' });
+      await ffmpeg!.exec([
+        '-i',
+        inputFileName,
+        '-ss',
+        msToFFmpegTime(0),
+        '-to',
+        msToFFmpegTime(cutStartMs),
+        '-c:v',
+        videoCodec,
+        '-preset',
+        'ultrafast',
+        '-crf',
+        outputFormat === 'webm' ? '30' : '23',
+        '-c:a',
+        audioCodec,
+        '-b:a',
+        '128k',
+        '-y',
+        part1FileName,
+      ]);
+    }
+
+    if (cancelRequested) {
+      await cleanup(allFiles);
+      sendCancelled(jobId);
+      return;
+    }
+
+    if (cutEndMs < durationMs) {
+      sendProgress(jobId, { progress: 0.4, stage: 'encoding part C' });
+      await ffmpeg!.exec([
+        '-i',
+        inputFileName,
+        '-ss',
+        msToFFmpegTime(cutEndMs),
+        '-to',
+        msToFFmpegTime(durationMs),
+        '-c:v',
+        videoCodec,
+        '-preset',
+        'ultrafast',
+        '-crf',
+        outputFormat === 'webm' ? '30' : '23',
+        '-c:a',
+        audioCodec,
+        '-b:a',
+        '128k',
+        '-y',
+        part2FileName,
+      ]);
+    }
+
+    if (cancelRequested) {
+      await cleanup(allFiles);
+      sendCancelled(jobId);
+      return;
+    }
+
+    sendProgress(jobId, { progress: 0.6, stage: 'concatenating' });
+
+    let concatContent = '';
+    if (cutStartMs > 0) {
+      concatContent += `file '${part1FileName}'\n`;
+    }
+    if (cutEndMs < durationMs) {
+      concatContent += `file '${part2FileName}'\n`;
+    }
+
+    if (!concatContent) {
+      sendError(jobId, 'INVALID_ARGS', '잘라낼 구간이 전체 영상입니다.');
+      await cleanup(allFiles);
+      return;
+    }
+
+    const concatData = new TextEncoder().encode(concatContent);
+    await ffmpeg!.writeFile(concatFileName, concatData);
+
+    await ffmpeg!.exec([
+      '-f',
+      'concat',
+      '-safe',
+      '0',
+      '-i',
+      concatFileName,
+      '-c',
+      'copy',
+      '-movflags',
+      '+faststart',
+      '-y',
+      outputFileName,
+    ]);
+
+    if (cancelRequested) {
+      await cleanup(allFiles);
+      sendCancelled(jobId);
+      return;
+    }
+
+    sendProgress(jobId, { progress: 0.9, stage: 'reading output' });
+
+    const outputData = (await ffmpeg!.readFile(outputFileName)) as Uint8Array;
+    if (outputData.length === 0) {
+      throw new Error('FFmpeg conversion failed: output file is empty');
+    }
+    const mime = outputFormat === 'webm' ? 'video/webm' : 'video/mp4';
+    const outputBuffer =
+      outputData.byteOffset === 0
+        ? (outputData.buffer as ArrayBuffer)
+        : outputData.slice().buffer;
+    const elapsedMs = Math.round(performance.now() - startTime);
+
+    await cleanup(allFiles);
+
+    sendProgress(jobId, { progress: 1, stage: 'complete' });
+    sendCompleted(jobId, outputBuffer, mime, elapsedMs);
+  } catch (error) {
+    await cleanup(allFiles);
+    if (cancelRequested) {
+      sendCancelled(jobId);
+      return;
+    }
+    const message = error instanceof Error ? error.message : 'unknown error';
+    sendError(
+      jobId,
+      'OUTPUT_ERROR',
+      '구간 제거 중 오류가 발생했습니다.',
+      message
+    );
+  } finally {
+    currentJobId = null;
+  }
+}
+
 async function handleBurnin(jobId: JobId, payload: BurninPayload) {
   const {
     inputBlob,
@@ -532,6 +720,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
     case 'trim':
       await handleTrim(msg.jobId, msg.payload);
+      break;
+
+    case 'cutout':
+      await handleCutout(msg.jobId, msg.payload);
       break;
 
     case 'burnin':

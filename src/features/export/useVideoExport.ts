@@ -7,9 +7,10 @@ import {
   isFFmpegReady,
   exportWithSubtitles,
   trimVideo,
+  cutoutVideo,
   cancelCurrentJob,
 } from './ffmpegClient';
-import { captionsToAss, adjustAssForTrim } from './srtUtils';
+import { adjustAssForTrim } from './srtUtils';
 
 export type ExportState = {
   status: 'idle' | 'initializing' | 'exporting' | 'completed' | 'error';
@@ -27,6 +28,8 @@ export type ExportOptions = {
   includeSubtitles?: boolean;
   videoFilter?: string;
   outputFormat?: 'mp4' | 'webm';
+  exportMode?: 'trim' | 'cutout';
+  durationMs?: number | null;
 };
 
 export type UseVideoExportReturn = {
@@ -104,6 +107,8 @@ export function useVideoExport(): UseVideoExportReturn {
         includeSubtitles = true,
         videoFilter,
         outputFormat = 'mp4',
+        exportMode = 'trim',
+        durationMs = 0,
       } = options;
 
       if (!isFFmpegReady()) {
@@ -128,24 +133,44 @@ export function useVideoExport(): UseVideoExportReturn {
 
         let result: CompletedData;
 
-        if (includeSubtitles && captions.length > 0) {
-          const assContent = hasTrim
-            ? adjustAssForTrim(captions, startMs, endMs)
-            : captionsToAss(captions);
+        if (!hasTrim) {
+          setState({
+            status: 'completed',
+            progress: 1,
+            outputBlob: videoBlob,
+            elapsedMs: 0,
+          });
+          return;
+        }
+
+        if (exportMode === 'cutout') {
+          // Cutout does not support subtitles
+          result = await cutoutVideo(
+            {
+              inputBlob: videoBlob,
+              cutStartMs: startMs,
+              cutEndMs: endMs,
+              durationMs: durationMs || 0,
+              outputFormat,
+            },
+            { onProgress: handleProgress }
+          );
+        } else if (includeSubtitles && captions.length > 0) {
+          const assContent = adjustAssForTrim(captions, startMs, endMs);
           console.log('[export] ASS content:', assContent);
 
           result = await exportWithSubtitles(
             {
               inputBlob: videoBlob,
-              startMs: hasTrim ? startMs : 0,
-              endMs: hasTrim ? endMs : undefined,
+              startMs,
+              endMs,
               srtContent: assContent,
               outputFormat,
               videoFilter,
             },
             { onProgress: handleProgress }
           );
-        } else if (hasTrim) {
+        } else {
           result = await trimVideo(
             {
               inputBlob: videoBlob,
@@ -155,14 +180,6 @@ export function useVideoExport(): UseVideoExportReturn {
             },
             { onProgress: handleProgress }
           );
-        } else {
-          setState({
-            status: 'completed',
-            progress: 1,
-            outputBlob: videoBlob,
-            elapsedMs: 0,
-          });
-          return;
         }
 
         setState({
