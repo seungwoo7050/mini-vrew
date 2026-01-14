@@ -55,6 +55,10 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isWordEditorMode, setIsWordEditorMode] = useState(false);
+  const [inputValues, setInputValues] = useState<
+    Map<string, { start?: string; end?: string }>
+  >(new Map());
+  const [focusTextareaId, setFocusTextareaId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const captionsQuery = useCaptionsQuery(videoId);
@@ -69,6 +73,19 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
     }
   }, [data]);
 
+  useEffect(() => {
+    if (focusTextareaId) {
+      const el = document.querySelector(
+        `textarea[data-caption-id="${focusTextareaId}"]`
+      ) as HTMLTextAreaElement;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+      setFocusTextareaId(null);
+    }
+  }, [focusTextareaId]);
+
   const heading = useMemo(
     () => (drafts.length ? `자막 ${drafts.length}개` : '자막 없음'),
     [drafts.length]
@@ -80,9 +97,125 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
         if (caption.id !== id) return caption;
         if (field === 'text') return { ...caption, text: raw };
         const parsed = parseTimecode(raw);
-        return parsed === null ? caption : { ...caption, [field]: parsed };
+        if (parsed === null) return caption;
+        return {
+          ...caption,
+          [field]: parsed,
+          ...(field === 'startMs' && caption.startMs === 0
+            ? { endMs: parsed + 2000 }
+            : {}),
+        };
       })
     );
+  };
+
+  const handleTimeChange = (
+    captionId: string,
+    field: 'start' | 'end',
+    value: string
+  ) => {
+    setInputValues((prev) => {
+      const newMap = new Map(prev);
+      const current = newMap.get(captionId) || {};
+      newMap.set(captionId, { ...current, [field]: value });
+      return newMap;
+    });
+  };
+
+  const handleTimeBlur = (captionId: string, field: 'start' | 'end') => {
+    const raw = inputValues.get(captionId)?.[field];
+    if (raw !== undefined) {
+      updateField(captionId, field === 'start' ? 'startMs' : 'endMs', raw);
+      setInputValues((prev) => {
+        const newMap = new Map(prev);
+        const current = newMap.get(captionId);
+        if (current) {
+          const newCurrent = { ...current };
+          delete newCurrent[field];
+          if (Object.keys(newCurrent).length === 0) {
+            newMap.delete(captionId);
+          } else {
+            newMap.set(captionId, newCurrent);
+          }
+        }
+        return newMap;
+      });
+      if (field === 'start') {
+        setInputValues((prev) => {
+          const newMap = new Map(prev);
+          const current = newMap.get(captionId);
+          if (current) {
+            const newCurrent = { ...current };
+            delete newCurrent.end;
+            if (Object.keys(newCurrent).length === 0) {
+              newMap.delete(captionId);
+            } else {
+              newMap.set(captionId, newCurrent);
+            }
+          }
+          return newMap;
+        });
+      }
+    }
+  };
+
+  const handleTimeKeyDown = (
+    event: KeyboardEvent<HTMLInputElement>,
+    captionId: string,
+    field: 'start' | 'end'
+  ) => {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      const caption = drafts.find((c) => c.id === captionId);
+      if (!caption) return;
+      const currentMs = field === 'start' ? caption.startMs : caption.endMs;
+      const delta = event.key === 'ArrowUp' ? 100 : -100;
+      const newMs = Math.max(0, currentMs + delta);
+      const newValue = formatTimecode(newMs);
+      handleTimeChange(captionId, field, newValue);
+      updateField(captionId, field === 'start' ? 'startMs' : 'endMs', newValue);
+      if (field === 'start') {
+        setInputValues((prev) => {
+          const newMap = new Map(prev);
+          const current = newMap.get(captionId);
+          if (current) {
+            const newCurrent = { ...current };
+            delete newCurrent.end;
+            if (Object.keys(newCurrent).length === 0) {
+              newMap.delete(captionId);
+            } else {
+              newMap.set(captionId, newCurrent);
+            }
+          }
+          return newMap;
+        });
+      }
+    }
+  };
+
+  const handleTimeDoubleClick = (captionId: string, field: 'start' | 'end') => {
+    const playhead = getPlaybackTimeMs();
+    if (playhead !== null) {
+      const newValue = formatTimecode(playhead);
+      handleTimeChange(captionId, field, newValue);
+      updateField(captionId, field === 'start' ? 'startMs' : 'endMs', newValue);
+      if (field === 'start') {
+        setInputValues((prev) => {
+          const newMap = new Map(prev);
+          const current = newMap.get(captionId);
+          if (current) {
+            const newCurrent = { ...current };
+            delete newCurrent.end;
+            if (Object.keys(newCurrent).length === 0) {
+              newMap.delete(captionId);
+            } else {
+              newMap.set(captionId, newCurrent);
+            }
+          }
+          return newMap;
+        });
+      }
+    }
   };
 
   const onUpdateCaption = useCallback((caption: Caption) => {
@@ -203,7 +336,7 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
     event.preventDefault();
     updateField(captionId, 'text', event.currentTarget.value);
     const newId = handleAdd(getPlaybackTimeMs());
-    return newId;
+    setFocusTextareaId(newId);
   };
 
   if (isPending) {
@@ -305,24 +438,38 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
                 className={`${styles.row} ${isActive ? styles.rowActive : ''}`}
               >
                 <input
-                  key={`${caption.id}-start-${caption.startMs}`}
+                  key={`${caption.id}-start`}
                   className={styles.input}
                   type="text"
-                  value={formatTimecode(caption.startMs)}
+                  value={
+                    inputValues.get(caption.id)?.start ??
+                    formatTimecode(caption.startMs)
+                  }
                   aria-label="시작 시간"
                   onChange={(e) =>
-                    updateField(caption.id, 'startMs', e.target.value)
+                    handleTimeChange(caption.id, 'start', e.target.value)
+                  }
+                  onBlur={() => handleTimeBlur(caption.id, 'start')}
+                  onKeyDown={(e) => handleTimeKeyDown(e, caption.id, 'start')}
+                  onDoubleClick={() =>
+                    handleTimeDoubleClick(caption.id, 'start')
                   }
                 />
                 <input
-                  key={`${caption.id}-end-${caption.endMs}`}
+                  key={`${caption.id}-end`}
                   className={styles.input}
                   type="text"
-                  value={formatTimecode(caption.endMs)}
+                  value={
+                    inputValues.get(caption.id)?.end ??
+                    formatTimecode(caption.endMs)
+                  }
                   aria-label="종료 시간"
                   onChange={(e) =>
-                    updateField(caption.id, 'endMs', e.target.value)
+                    handleTimeChange(caption.id, 'end', e.target.value)
                   }
+                  onBlur={() => handleTimeBlur(caption.id, 'end')}
+                  onKeyDown={(e) => handleTimeKeyDown(e, caption.id, 'end')}
+                  onDoubleClick={() => handleTimeDoubleClick(caption.id, 'end')}
                 />
                 <button
                   className={styles.smallButton}
@@ -337,6 +484,7 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
                   className={styles.textarea}
                   value={caption.text}
                   aria-label="자막 내용"
+                  data-caption-id={caption.id}
                   onChange={(e) =>
                     updateField(caption.id, 'text', e.target.value)
                   }
