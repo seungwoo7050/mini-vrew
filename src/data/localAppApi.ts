@@ -1,4 +1,4 @@
-import { sampleVideos } from './fixtures';
+// import { sampleVideos } from './fixtures';
 import type { AppApi } from './AppApi';
 import type {
   Caption,
@@ -34,9 +34,9 @@ function generateVideoId(prefix = 'local'): VideoId {
 async function ensureSeeded(): Promise<void> {
   if (seeded) return;
   seeded = true;
-  const existing = await listVideoMetas();
-  if (existing.length > 0) return;
-  await Promise.all(sampleVideos.map((video) => saveVideoMeta(video)));
+  // const existing = await listVideoMetas();
+  // if (existing.length > 0) return;
+  // await Promise.all(sampleVideos.map((video) => saveVideoMeta(video)));
 }
 
 async function ensureVideoMeta(id: VideoId): Promise<Video | null> {
