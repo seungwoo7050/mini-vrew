@@ -1,9 +1,38 @@
 .page {
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
-  color: #0b1220;
+  color: var(--text);
+  display: grid;
+  gap: 20px;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.heroCopy {
+  display: grid;
+  gap: 6px;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.breadcrumb {
+  color: var(--muted-light);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.breadcrumb:hover {
+  color: var(--primary);
 }
 
 .player {
@@ -11,10 +40,11 @@
   width: 100%;
   max-width: 960px;
   aspect-ratio: 16 / 9;
-  background: #000000;
-  border-radius: 8px;
+  background: var(--text);
+  border-radius: 16px;
   overflow: hidden;
   margin: 0 auto;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
 }
 
 .playerVideo {
@@ -26,20 +56,22 @@
 }
 
 .meta {
-  margin-top: 16px;
+  margin-top: 6px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  color: var(--muted-light);
 }
 
 .title {
-  font-size: 1.4rem;
+  font-size: clamp(1.6rem, 2vw, 2.2rem);
   font-weight: 800;
-  color: #0b1220;
+  color: var(--text);
+  margin: 0;
 }
 
 .views {
-  color: #64748b;
+  color: var(--muted-light);
   font-size: 0.9rem;
 }
 
@@ -51,10 +83,10 @@
 
 .panel {
   background: #ffffff;
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 1px 0 rgba(11, 18, 32, 0.04);
-  border: 1px solid rgba(20, 161, 200, 0.03);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .captionColumn {
@@ -74,37 +106,40 @@
 }
 
 .placeholder {
-  color: #64748b;
+  color: var(--muted-light);
   padding: 24px;
   text-align: center;
 }
 
 .button {
-  padding: 8px 12px;
-  background: transparent;
-  border: 1px solid rgba(20, 161, 200, 0.06);
-  color: #14a1c8;
-  border-radius: 8px;
+  padding: 8px 14px;
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: var(--primary);
+  border-radius: 999px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .status {
-  color: #64748b;
+  color: var(--primary);
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   text-align: center;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(var(--primary-rgb), 0.08);
 }
 
 .videoTitle {
   margin: 0 0 4px 0;
-  color: #0b1220;
+  color: var(--text);
   font-size: 1.1rem;
 }
 
 .link {
   display: inline-flex;
-  color: #14a1c8;
+  color: var(--primary);
   text-decoration: none;
   font-weight: 600;
 }
@@ -134,9 +169,9 @@
 .toggleButton {
   padding: 4px 8px;
   border: 0px;
-  background: #14a1c8;
+  background: var(--primary);
   color: #ffffff;
-  border-radius: 4px;
+  border-radius: 999px;
   cursor: pointer;
   font-size: 0.8rem;
   user-select: none;
@@ -162,7 +197,7 @@
 }
 
 .thumbFallback {
-  color: #94a3b8;
+  color: var(--muted-soft);
   font-size: 0.95rem;
 }
 
@@ -174,10 +209,10 @@
 }
 
 .deleteButton {
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
   border: 0px;
-  background: #fca5a5;
+  background: var(--danger);
   color: #ffffff;
   cursor: pointer;
   min-width: fit-content;
@@ -185,11 +220,11 @@
 }
 
 .deleteButton:hover {
-  background: #f87171;
+  background: var(--danger-hover);
 }
 
 .error {
-  color: #fca5a5;
+  color: var(--danger);
   margin: 0;
 }
 
@@ -211,26 +246,26 @@
 }
 
 .waveformContainer {
-  border-radius: 10px;
+  border-radius: 14px;
   overflow: hidden;
   background: #ffffff;
-  border: 1px solid #14a1c8;
+  border: 1px solid rgba(var(--primary-rgb), 0.4);
   width: 100%;
   min-width: 0;
 }
 
 .waveformStatus {
-  color: #64748b;
+  color: var(--muted-light);
   margin: 4px 0;
 }
 
 .waveformError {
-  color: #f87171;
+  color: var(--danger);
   margin: 4px 0;
 }
 
 .timeDisplay {
-  color: #64748b;
+  color: var(--muted-light);
   font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
 }
@@ -244,10 +279,10 @@
 
 .trimButton {
   padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(20, 161, 200, 0.12);
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
   background: #f1f5f9;
-  color: #0b1220;
+  color: var(--text);
   cursor: pointer;
 }
 
@@ -259,21 +294,21 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #0b1220;
+  color: var(--text);
   font-size: 0.95rem;
 }
 
 .trimInfo {
-  color: #0b1220;
+  color: var(--text);
   font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
 }
 
 .recommendSection {
   margin-top: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 8px;
+  border-radius: 14px;
   background: #f8fafc;
   display: flex;
   flex-direction: column;
@@ -295,21 +330,21 @@
 
 .recommendLabel {
   font-weight: 600;
-  color: #0b1220;
+  color: var(--text);
 }
 
 .recommendRadio {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #0b1220;
+  color: var(--text);
 }
 
 .recommendCount {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #0b1220;
+  color: var(--text);
 }
 
 .recommendCount select {
@@ -321,13 +356,13 @@
 
 .recommendButton {
   padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(20, 161, 200, 0.12);
-  background: #14a1c8;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--primary-rgb), 0.12);
+  background: var(--primary);
   color: #ffffff;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.2);
+  box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.2);
 }
 
 .recommendButton:disabled {
@@ -337,7 +372,7 @@
 }
 
 .recommendStatus {
-  color: #0f172a;
+  color: var(--text);
   font-size: 0.95rem;
 }
 
@@ -353,7 +388,7 @@
   padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
-  color: #0b1220;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -381,17 +416,17 @@
 .filterSection {
   margin-bottom: 16px;
   padding: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.1);
-  border-radius: 8px;
-  background: rgba(226, 232, 240, 0.02);
+  border: 1px solid rgba(226, 232, 240, 0.4);
+  border-radius: 14px;
+  background: rgba(226, 232, 240, 0.2);
 }
 
 .filterToggle {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid rgba(226, 232, 240, 0.15);
-  border-radius: 6px;
-  background: #14a1c8;
+  border: 1px solid rgba(226, 232, 240, 0.4);
+  border-radius: 999px;
+  background: var(--primary);
   color: #ffffff;
   cursor: pointer;
   font-size: 0.9rem;
@@ -416,17 +451,17 @@
   align-items: center;
   gap: 6px;
   font-size: 0.85rem;
-  color: #0b1220;
+  color: var(--text);
   min-width: 60px;
 }
 
 .filterSlider {
   width: 120px;
-  accent-color: #6366f1;
+  accent-color: var(--primary);
 }
 
 .filterValue {
-  color: #64748b;
+  color: var(--muted-light);
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
   min-width: 48px;
@@ -435,20 +470,20 @@
 .filterResetButton {
   padding: 4px 8px;
   border: 0px;
-  background: #fca5a5;
+  background: var(--danger);
   color: #ffffff;
-  border-radius: 6px;
+  border-radius: 999px;
   cursor: pointer;
   font-size: 0.75rem;
   user-select: none;
 }
 
 .filterResetButton:hover {
-  background: #f87171;
+  background: var(--danger-hover);
 }
 
 .filterError {
-  color: #ef4444;
+  color: var(--danger);
   font-size: 0.85rem;
   margin: 8px 0 0;
 }
@@ -457,7 +492,7 @@
   margin-top: 16px;
   padding: 12px;
   border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 10px;
+  border-radius: 16px;
   background: #ffffff;
   display: grid;
   gap: 10px;
@@ -472,7 +507,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #0b1220;
+  color: var(--text);
   font-size: 0.95rem;
 }
 
@@ -492,13 +527,13 @@
 
 .exportButton {
   padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(20, 161, 200, 0.2);
-  background: #14a1c8;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
+  background: var(--primary);
   color: #ffffff;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(20, 161, 200, 0.25);
+  box-shadow: 0 6px 18px rgba(var(--primary-rgb), 0.25);
 }
 
 .exportButton:disabled {
@@ -509,10 +544,10 @@
 
 .exportGhostButton {
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 999px;
   border: 1px solid rgba(15, 23, 42, 0.12);
   background: #ffffff;
-  color: #0b1220;
+  color: var(--text);
   cursor: pointer;
 }
 
@@ -521,7 +556,7 @@
 }
 
 .exportHint {
-  color: #64748b;
+  color: var(--muted-light);
   font-size: 0.9rem;
   margin: 0;
 }
@@ -541,17 +576,17 @@
 .exportProgressBar span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #14a1c8, #38bdf8);
+  background: var(--primary);
 }
 
 .exportStatus {
-  color: #0b1220;
+  color: var(--text);
   font-size: 0.9rem;
   margin: 0;
 }
 
 .exportError {
-  color: #ef4444;
+  color: var(--danger);
   font-size: 0.9rem;
   margin: 0;
 }

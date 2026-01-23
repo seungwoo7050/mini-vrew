@@ -403,22 +403,27 @@ function VideoDetailPage() {
 
   return (
     <section className={styles.page}>
-      <div className={styles.headerRow}>
-        <div>
+      <header className={styles.hero}>
+        <div className={styles.heroCopy}>
+          <Link to="/videos" className={styles.breadcrumb}>
+            ← 비디오 목록
+          </Link>
           <h1 className={styles.title}>{video.title}</h1>
           <div className={styles.meta}>
             생성: {new Date(video.createdAt).toLocaleString('ko-KR')}
           </div>
         </div>
-        <button
-          className={styles.deleteButton}
-          type="button"
-          onClick={handleDelete}
-          disabled={deleteVideo.isPending}
-        >
-          {deleteVideo.isPending ? '삭제 중...' : '삭제'}
-        </button>
-      </div>
+        <div className={styles.heroActions}>
+          <button
+            className={styles.deleteButton}
+            type="button"
+            onClick={handleDelete}
+            disabled={deleteVideo.isPending}
+          >
+            {deleteVideo.isPending ? '삭제 중...' : '삭제'}
+          </button>
+        </div>
+      </header>
       {error && <p className={styles.error}>{error}</p>}
       <div className={styles.grid}>
         <article className={styles.panel}>
@@ -467,7 +472,7 @@ function VideoDetailPage() {
               ) : (
                 <div
                   style={{
-                    color: '#94a3b8',
+                    color: 'var(--muted-soft)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',

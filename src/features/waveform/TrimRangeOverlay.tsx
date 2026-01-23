@@ -175,8 +175,8 @@ function TrimRangeOverlay({
     width: `${width * 100}%`,
     top: 0,
     bottom: 0,
-    background: 'rgba(100, 108, 255, 0.12)',
-    border: '1px solid #14a1c8',
+    background: 'rgba(var(--primary-rgb), 0.12)',
+    border: '1px solid var(--primary)',
     pointerEvents: 'none',
   };
 
@@ -199,7 +199,7 @@ function TrimRangeOverlay({
   const handleBarStyle: CSSProperties = {
     width: 4,
     height: '60%',
-    background: '#14a1c8',
+    background: 'var(--primary)',
     borderRadius: 2,
   };
 

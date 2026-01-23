@@ -34,12 +34,48 @@ function VideosPage() {
   const { data, isPending, isError } = useVideosQuery();
   const deleteVideo = useDeleteVideoMutation();
   const videos = data ?? [];
+  const videoCountLabel = isPending ? '로딩 중' : `${videos.length}개`;
 
   return (
     <section className={styles.page}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>비디오 목록</h1>
-        <span className={styles.meta}>모든 파이프라인의 시작점</span>
+      <div className={styles.hero}>
+        <div className={styles.heroCopy}>
+          <span className={styles.kicker}>Portfolio hub</span>
+          <h1 className={styles.title}>비디오 파이프라인 쇼케이스</h1>
+          <p className={styles.subtitle}>
+            업로드부터 편집, 자막, 렌더링까지 이어지는 흐름을 한 화면에서
+            관리합니다.
+          </p>
+          <div className={styles.heroActions}>
+            <Link to="/upload" className={styles.primaryAction}>
+              새 비디오 업로드
+            </Link>
+            <span className={styles.secondaryAction}>
+              보유 {videoCountLabel}
+            </span>
+          </div>
+        </div>
+        <div className={styles.heroCard}>
+          <div className={styles.heroCardHeader}>
+            <span className={styles.heroCardTitle}>Pipeline Snapshot</span>
+            <span className={styles.heroCardMeta}>실시간 로컬 스토리지</span>
+          </div>
+          <div className={styles.heroStats}>
+            <div>
+              <p className={styles.heroStatLabel}>총 비디오</p>
+              <p className={styles.heroStatValue}>{videoCountLabel}</p>
+            </div>
+            <div>
+              <p className={styles.heroStatLabel}>상태</p>
+              <p className={styles.heroStatValue}>
+                {isPending ? '동기화 중' : '준비 완료'}
+              </p>
+            </div>
+          </div>
+          <p className={styles.heroCardBody}>
+            카드 클릭으로 상세 워크플로우와 자동 추천 편집을 확인할 수 있습니다.
+          </p>
+        </div>
       </div>
 
       {isPending && <p className={styles.status}>목록을 불러오는 중...</p>}
@@ -50,9 +86,14 @@ function VideosPage() {
       )}
 
       {!isPending && !isError && videos.length === 0 && (
-        <p className={styles.status}>
-          아직 업로드된 비디오가 없습니다. 업로드 후 여기에 표시됩니다.
-        </p>
+        <div className={styles.emptyState}>
+          <p className={styles.status}>
+            아직 업로드된 비디오가 없습니다. 업로드 후 여기에 표시됩니다.
+          </p>
+          <Link to="/upload" className={styles.primaryAction}>
+            첫 비디오 업로드
+          </Link>
+        </div>
       )}
 
       {!isPending && !isError && videos.length > 0 && (

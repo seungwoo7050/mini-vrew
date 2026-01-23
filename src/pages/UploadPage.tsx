@@ -106,114 +106,145 @@ function UploadPage() {
 
   return (
     <section className={styles.page}>
-      <div>
-        <h1 className={styles.title}>비디오 업로드</h1>
-        <p className={styles.subtitle}>
-          로컬 비디오를 업로드하고 IndexedDB에 안전하게 저장합니다.
-        </p>
-      </div>
-      <div className={styles.steps}>
-        <span>1) 제목과 파일을 선택합니다.</span>
-        <span>2) 썸네일을 생성해 미리 봅니다 (현재는 stub).</span>
-        <span>3) 업로드 후 목록에서 바로 확인합니다.</span>
-      </div>
+      <header className={styles.hero}>
+        <div>
+          <span className={styles.kicker}>Upload studio</span>
+          <h1 className={styles.title}>비디오 업로드 스테이션</h1>
+          <p className={styles.subtitle}>
+            로컬 비디오를 업로드하고 IndexedDB에 안전하게 저장합니다.
+          </p>
+        </div>
+        <div className={styles.steps}>
+          <div className={styles.stepCard}>
+            <span className={styles.stepNumber}>01</span>
+            <span>제목과 파일을 선택합니다.</span>
+          </div>
+          <div className={styles.stepCard}>
+            <span className={styles.stepNumber}>02</span>
+            <span>썸네일을 생성해 미리 봅니다.</span>
+          </div>
+          <div className={styles.stepCard}>
+            <span className={styles.stepNumber}>03</span>
+            <span>업로드 후 목록에서 바로 확인합니다.</span>
+          </div>
+        </div>
+      </header>
 
       <form className={styles.form} onSubmit={handleSumbit}>
-        <label className={styles.label}>
-          제목
-          <input
-            className={styles.input}
-            type="text"
-            name="title"
-            placeholder="예) 취업을 위한 프로젝트 소개 영상"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={isPending}
-          />
-        </label>
-
-        <label className={styles.label}>
-          비디오 파일
-          <input
-            className={styles.input}
-            type="file"
-            accept="video/*"
-            onChange={handleFileChange}
-            disabled={isPending}
-          />
-        </label>
-
-        {file && thumbnails.jpeg && thumbnails.png && videoDuration && (
-          <div className={styles.thumbnailSection}>
-            <h3 className={styles.subtitle}>생성된 썸네일 미리보기</h3>
-            <div className={styles.timeControl}>
-              <label htmlFor="atSeconds" className={styles.thumbLabel}>
-                썸네일 캡처 시점: {atSeconds.toFixed(1)}s /{' '}
-                {videoDuration.toFixed(1)}s
-              </label>
+        <div className={styles.formGrid}>
+          <div className={styles.formFields}>
+            <label className={styles.label}>
+              제목
               <input
-                id="atSeconds"
-                type="range"
-                min={0}
-                max={videoDuration}
-                step={0.1}
-                value={atSeconds}
-                onChange={(e) => setAtSeconds(parseFloat(e.target.value))}
+                className={styles.input}
+                type="text"
+                name="title"
+                placeholder="예) 취업을 위한 프로젝트 소개 영상"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 disabled={isPending}
-                className={styles.timeSlider}
               />
+            </label>
+
+            <label className={styles.label}>
+              비디오 파일
+              <input
+                className={styles.input}
+                type="file"
+                accept="video/*"
+                onChange={handleFileChange}
+                disabled={isPending}
+              />
+            </label>
+
+            <div className={styles.hint}>
+              안정적인 업로드를 위해 500MB 이하의 파일을 권장합니다.
             </div>
-            <div className={styles.thumbnailOptions}>
-              <label className={styles.thumbnailOption}>
-                <input
-                  type="radio"
-                  value="jpeg"
-                  checked={thumbChoice === 'jpeg'}
-                  onChange={() => setThumbChoice('jpeg')}
-                  disabled={isPending}
-                />
-                JPEG
-                <img
-                  src={thumbnails.jpeg}
-                  alt="JPEG 썸네일"
-                  className={styles.thumbnailPreview}
-                />
-              </label>
-              <label className={styles.thumbnailOption}>
-                <input
-                  type="radio"
-                  value="png"
-                  checked={thumbChoice === 'png'}
-                  onChange={() => setThumbChoice('png')}
-                  disabled={isPending}
-                />
-                PNG
-                <img
-                  src={thumbnails.png}
-                  alt="PNG 썸네일"
-                  className={styles.thumbnailPreview}
-                />
-              </label>
-            </div>
-            {thumbChoice === 'jpeg' && (
-              <div className={styles.qualityControl}>
-                <label htmlFor="jpegQuality" className={styles.thumbLabel}>
-                  JPEG 품질: {(jpegQuality * 100).toFixed(0)}%
-                </label>
-                <input
-                  id="jpegQuality"
-                  type="range"
-                  min={0.1}
-                  max={1}
-                  step={0.01}
-                  value={jpegQuality}
-                  onChange={(e) => setJpegQuality(parseFloat(e.target.value))}
-                  className={styles.qualitySlider}
-                />
+          </div>
+
+          <div className={styles.previewPanel}>
+            <h3 className={styles.panelTitle}>썸네일 미리보기</h3>
+            <p className={styles.panelSubtitle}>
+              업로드 전에 캡처 시점과 포맷을 선택해 확인할 수 있습니다.
+            </p>
+            {file && thumbnails.jpeg && thumbnails.png && videoDuration ? (
+              <div className={styles.thumbnailSection}>
+                <div className={styles.timeControl}>
+                  <label htmlFor="atSeconds" className={styles.thumbLabel}>
+                    캡처 시점: {atSeconds.toFixed(1)}s /{' '}
+                    {videoDuration.toFixed(1)}s
+                  </label>
+                  <input
+                    id="atSeconds"
+                    type="range"
+                    min={0}
+                    max={videoDuration}
+                    step={0.1}
+                    value={atSeconds}
+                    onChange={(e) => setAtSeconds(parseFloat(e.target.value))}
+                    disabled={isPending}
+                    className={styles.timeSlider}
+                  />
+                </div>
+                <div className={styles.thumbnailOptions}>
+                  <label className={styles.thumbnailOption}>
+                    <input
+                      type="radio"
+                      value="jpeg"
+                      checked={thumbChoice === 'jpeg'}
+                      onChange={() => setThumbChoice('jpeg')}
+                      disabled={isPending}
+                    />
+                    JPEG
+                    <img
+                      src={thumbnails.jpeg}
+                      alt="JPEG 썸네일"
+                      className={styles.thumbnailPreview}
+                    />
+                  </label>
+                  <label className={styles.thumbnailOption}>
+                    <input
+                      type="radio"
+                      value="png"
+                      checked={thumbChoice === 'png'}
+                      onChange={() => setThumbChoice('png')}
+                      disabled={isPending}
+                    />
+                    PNG
+                    <img
+                      src={thumbnails.png}
+                      alt="PNG 썸네일"
+                      className={styles.thumbnailPreview}
+                    />
+                  </label>
+                </div>
+                {thumbChoice === 'jpeg' && (
+                  <div className={styles.qualityControl}>
+                    <label htmlFor="jpegQuality" className={styles.thumbLabel}>
+                      JPEG 품질: {(jpegQuality * 100).toFixed(0)}%
+                    </label>
+                    <input
+                      id="jpegQuality"
+                      type="range"
+                      min={0.1}
+                      max={1}
+                      step={0.01}
+                      value={jpegQuality}
+                      onChange={(e) =>
+                        setJpegQuality(parseFloat(e.target.value))
+                      }
+                      className={styles.qualitySlider}
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className={styles.placeholder}>
+                비디오를 선택하면 썸네일을 미리 볼 수 있습니다.
               </div>
             )}
           </div>
-        )}
+        </div>
 
         <div className={styles.actions}>
           <button className={styles.button} type="submit" disabled={isPending}>

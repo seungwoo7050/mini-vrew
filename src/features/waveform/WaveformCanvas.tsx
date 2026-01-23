@@ -33,8 +33,8 @@ function WaveformCanvas({
   trimRange,
   mode = 'peaks',
   colorWave = '#4a5568',
-  colorTrim = 'rgba(252, 165, 165, 0.25)',
-  colorPlayhead = '#fca5a5',
+  colorTrim,
+  colorPlayhead,
   className,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -67,10 +67,21 @@ function WaveformCanvas({
     const msToX = (ms: number) =>
       Math.round(msToFraction(ms, fullDuration, vStart, vEnd) * w);
 
+    const rootStyle = getComputedStyle(document.documentElement);
+    const dangerRgb =
+      rootStyle.getPropertyValue('--danger-rgb').trim() || '255, 68, 68';
+    const warningRgb =
+      rootStyle.getPropertyValue('--warning-rgb').trim() || '255, 193, 7';
+
+    const resolvedColorTrim =
+      colorTrim ?? `rgba(${dangerRgb.replace(/\s+/g, '')}, 0.6)`;
+    const resolvedColorPlayhead =
+      colorPlayhead ?? `rgb(${warningRgb.replace(/\s+/g, '')})`;
+
     if (trimRange && viewDurationMs > 0) {
       const startX = msToX(trimRange.startMs);
       const endX = msToX(trimRange.endMs);
-      ctx.fillStyle = colorTrim;
+      ctx.fillStyle = resolvedColorTrim;
       ctx.fillRect(
         Math.max(0, startX),
         0,
@@ -86,7 +97,10 @@ function WaveformCanvas({
       const endBucket = Math.min(totalBuckets, Math.ceil(vEnd / msPerBucket));
 
       const centerY = h / 2;
-      ctx.fillStyle = mode === 'rms' ? 'rgba(255, 193, 7, 0.6)' : colorWave;
+      ctx.fillStyle =
+        mode === 'rms'
+          ? `rgba(${warningRgb.replace(/\s+/g, '')}, 0.6)`
+          : colorWave;
 
       for (let i = startBucket; i < endBucket; i++) {
         const minVal = peaks[i * 2];
@@ -114,7 +128,7 @@ function WaveformCanvas({
     if (playheadMs != null && viewDurationMs > 0) {
       const x = msToX(playheadMs);
       if (x >= 0 && x <= w) {
-        ctx.strokeStyle = colorPlayhead;
+        ctx.strokeStyle = resolvedColorPlayhead;
         ctx.lineWidth = 2 * dpr;
         ctx.beginPath();
         ctx.moveTo(x, 0);
