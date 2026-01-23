@@ -28,7 +28,7 @@ world
     const srt = `1\r\n05:00 --> 06:00\r\nfirst\r\n\r\n2\r\n00:00:05 --> 00:00:06\r\nsecond\r\n`;
     const caps = parseCaptions(srt);
     expect(caps).toHaveLength(2);
-    // captions are sorted by start time; cap_0001 is the earliest
+
     expect(caps[0].id).toMatch(/^cap_0001$/);
     expect(caps[0].startMs).toBe(5 * 1000);
     expect(caps[1].startMs).toBe(5 * 60_000);

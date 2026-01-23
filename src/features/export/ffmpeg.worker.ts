@@ -1,5 +1,7 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import coreJsUrl from '@ffmpeg/core?url';
+import coreWasmUrl from '@ffmpeg/core/wasm?url';
 
 import type {
   JobId,
@@ -20,13 +22,14 @@ let ffmpeg: FFmpeg | null = null;
 let currentJobId: JobId | null = null;
 let cancelRequested = false;
 
-const CORE_JS_URL = new URL('@ffmpeg/core', import.meta.url).toString();
-const CORE_WASM_URL = new URL('@ffmpeg/core/wasm', import.meta.url).toString();
+const CORE_JS_URL = coreJsUrl;
+const CORE_WASM_URL = coreWasmUrl;
 const DEFAULT_FONT_URL = new URL(
   '/fonts/DejaVuSans.ttf',
   self.location.origin
 ).toString();
 const DEFAULT_FONT_PATH = '/fonts/DejaVuSans.ttf';
+const LOAD_TIMEOUT_MS = 60 * 1000;
 let cachedCoreUrls: { coreURL: string; wasmURL: string } | null = null;
 let fontLoaded = false;
 
@@ -104,6 +107,29 @@ function parseAssForDrawtext(assContent: string): string {
 
 async function resolveCoreUrls() {
   if (cachedCoreUrls) return cachedCoreUrls;
+
+  try {
+    const publicCoreJS = new URL(
+      '/ffmpeg-core/ffmpeg-core.js',
+      self.location.origin
+    ).toString();
+    const publicWasm = new URL(
+      '/ffmpeg-core/ffmpeg-core.wasm',
+      self.location.origin
+    ).toString();
+
+    const [jsRes, wasmRes] = await Promise.all([
+      fetch(publicCoreJS, { method: 'HEAD' }),
+      fetch(publicWasm, { method: 'HEAD' }),
+    ]);
+
+    if (jsRes.ok && wasmRes.ok) {
+      cachedCoreUrls = { coreURL: publicCoreJS, wasmURL: publicWasm };
+      return cachedCoreUrls;
+    }
+  } catch {
+    // ignore and fall back to bundled/core URLs
+  }
 
   const coreURL = await toBlobURL(CORE_JS_URL, 'text/javascript');
   const wasmURL = await toBlobURL(CORE_WASM_URL, 'application/wasm');
@@ -207,8 +233,11 @@ async function ensureFFmpegLoaded(): Promise<void> {
     const loadPromise = ffmpeg.load({ coreURL, wasmURL });
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(
-        () => reject(new Error('FFmpeg load timeout after 30s')),
-        30000
+        () =>
+          reject(
+            new Error(`FFmpeg load timeout after ${LOAD_TIMEOUT_MS / 1000}s`)
+          ),
+        LOAD_TIMEOUT_MS
       );
     });
     await Promise.race([loadPromise, timeoutPromise]);
@@ -703,20 +732,33 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const msg = event.data;
 
   switch (msg.type) {
-    case 'init':
+    case 'init': {
       console.log(
         '[ffmpeg.worker] Received init message, calling ensureFFmpegLoaded'
       );
+      post({ type: 'init-progress', stage: 'starting', elapsedMs: 0 });
+      const initStart = performance.now();
+      const progressInterval = setInterval(() => {
+        post({
+          type: 'init-progress',
+          stage: 'loading',
+          elapsedMs: Math.round(performance.now() - initStart),
+        });
+      }, 5000);
       try {
         await ensureFFmpegLoaded();
+        const loadMs = Math.round(performance.now() - initStart);
         console.log('[ffmpeg.worker] Init complete, posting success');
-        post({ type: 'init-complete', success: true });
+        post({ type: 'init-complete', success: true, loadMs });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'init failed';
         console.error('[ffmpeg.worker] Init failed:', message);
         post({ type: 'init-complete', success: false, error: message });
+      } finally {
+        clearInterval(progressInterval);
       }
       break;
+    }
 
     case 'trim':
       await handleTrim(msg.jobId, msg.payload);

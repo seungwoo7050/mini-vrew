@@ -16,7 +16,7 @@ import type {
 } from './ffmpegTypes';
 
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
-const INIT_TIMEOUT_MS = 30 * 1000;
+const INIT_TIMEOUT_MS = 60 * 1000;
 
 type ClientState = {
   isInitialized: boolean;
@@ -76,6 +76,7 @@ function handleWorkerMessage(event: MessageEvent<WorkerResponse>) {
   switch (msg.type) {
     case 'ready':
     case 'init-complete':
+    case 'init-progress':
       break;
     case 'progress': {
       const cb = jobCallbacks.get(msg.jobId);
@@ -151,13 +152,43 @@ export async function initFFmpegWorker(): Promise<void> {
   return new Promise((resolve, reject) => {
     const workerUrl = new URL('./ffmpeg.worker.ts', import.meta.url);
     console.log('[ffmpeg.client] Worker URL:', workerUrl.href);
-    const worker = new Worker(workerUrl, { type: 'module' });
 
-    const timeoutId = setTimeout(() => {
-      console.error('[ffmpeg.client] Worker initialization timeout');
+    const worker = new Worker(new URL('./ffmpeg.worker.ts', import.meta.url), {
+      type: 'module',
+    });
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const startInitTimeout = () => {
+      timeoutId = setTimeout(() => {
+        console.error('[ffmpeg.client] Worker initialization timeout');
+        worker.removeEventListener('error', initErrorHandler);
+        worker.removeEventListener('messageerror', initErrorHandler);
+        worker.terminate();
+        reject(createError('TIMEOUT', 'Worker initialization timeout'));
+      }, INIT_TIMEOUT_MS);
+    };
+
+    const resetInitTimeout = () => {
+      clearTimeout(timeoutId);
+      startInitTimeout();
+    };
+
+    const initErrorHandler = (event: ErrorEvent | MessageEvent) => {
+      const message =
+        'message' in event && event.message
+          ? event.message
+          : 'Worker failed during initialization';
+      console.error('[ffmpeg.client] Worker init error:', message);
+      clearTimeout(timeoutId);
+      worker.removeEventListener('message', initHandler);
+      worker.removeEventListener('error', initErrorHandler);
+      worker.removeEventListener('messageerror', initErrorHandler);
       worker.terminate();
-      reject(createError('TIMEOUT', 'Worker initialization timeout'));
-    }, INIT_TIMEOUT_MS);
+      reject(createError('INIT_FAILED', message));
+    };
+
+    startInitTimeout();
 
     const initHandler = (event: MessageEvent<WorkerResponse>) => {
       const msg = event.data;
@@ -167,23 +198,47 @@ export async function initFFmpegWorker(): Promise<void> {
         msg.type === 'ready' ||
         (msg.type === 'init-complete' && msg.success)
       ) {
+        if (msg.type === 'ready') {
+          resetInitTimeout();
+          return;
+        }
         console.log('[ffmpeg.client] Worker initialized successfully');
+        if (msg.loadMs) {
+          console.log(
+            '[ffmpeg.client] FFmpeg core loaded in',
+            msg.loadMs,
+            'ms'
+          );
+        }
         clearTimeout(timeoutId);
         worker.removeEventListener('message', initHandler);
+        worker.removeEventListener('error', initErrorHandler);
+        worker.removeEventListener('messageerror', initErrorHandler);
         worker.addEventListener('message', handleWorkerMessage);
         worker.addEventListener('error', handleWorkerError);
         state.worker = worker;
         state.isInitialized = true;
         resolve();
+      } else if (msg.type === 'init-progress') {
+        console.log(
+          '[ffmpeg.client] FFmpeg init progress:',
+          msg.stage,
+          msg.elapsedMs
+        );
+        resetInitTimeout();
       } else if (msg.type === 'init-complete' && !msg.success) {
         console.error('[ffmpeg.client] Worker init failed:', msg.error);
         clearTimeout(timeoutId);
+        worker.removeEventListener('error', initErrorHandler);
+        worker.removeEventListener('messageerror', initErrorHandler);
         worker.terminate();
         reject(createError('INIT_FAILED', msg.error ?? 'Worker init failed'));
       }
     };
 
     worker.addEventListener('message', initHandler);
+    worker.addEventListener('error', initErrorHandler);
+    worker.addEventListener('messageerror', initErrorHandler);
     console.log('[ffmpeg.client] Sending init message to worker');
     worker.postMessage({ type: 'init' });
   });

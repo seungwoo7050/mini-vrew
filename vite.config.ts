@@ -9,10 +9,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '127.0.0.1',
-    headers: {
-      'Cross-Origin-Embedder-Policy': 'require-corp',
-      'Cross-Origin-Opener-Policy': 'same-origin',
-    },
+    ...(process.env.VERCEL_ENV && {
+      headers: {
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+      },
+    }),
   },
   resolve: {
     alias: {
@@ -20,7 +22,7 @@ export default defineConfig({
       stream: 'stream-browserify',
       util: 'util',
       buffer: 'buffer',
-      process: 'process/browser',
+      process: 'process/browser.js',
       events: 'events',
     },
   },
@@ -28,16 +30,16 @@ export default defineConfig({
     exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util', '@ffmpeg/core'],
     esbuildOptions: {
       define: {
-        global: 'globalThis'
+        global: 'globalThis',
       },
       plugins: [
-        NodeGlobalsPolyfillPlugin({ buffer: true }),
+        NodeGlobalsPolyfillPlugin({ buffer: true, process: true }),
         NodeModulesPolyfillPlugin(),
-      ]
-    }
+      ],
+    },
   },
   define: {
-    global: 'globalThis'
+    global: 'globalThis',
   },
   build: {
     rollupOptions: {
@@ -47,7 +49,16 @@ export default defineConfig({
         },
       },
     },
+    chunkSizeWarningLimit: 1000,
   },
   worker: {
     format: 'es',
-  },})
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          ffmpeg: ['@ffmpeg/ffmpeg', '@ffmpeg/util', '@ffmpeg/core'],
+        },
+      },
+    },
+  },
+})

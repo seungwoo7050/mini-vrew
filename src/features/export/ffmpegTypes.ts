@@ -88,7 +88,8 @@ export type WorkerRequest =
 
 export type WorkerResponse =
   | { type: 'ready' }
-  | { type: 'init-complete'; success: boolean; error?: string }
+  | { type: 'init-progress'; stage: string; elapsedMs?: number }
+  | { type: 'init-complete'; success: boolean; error?: string; loadMs?: number }
   | { type: 'progress'; jobId: JobId; data: ProgressData }
   | {
       type: 'completed';
