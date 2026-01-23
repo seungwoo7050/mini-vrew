@@ -44,6 +44,7 @@ function WordEditor({
     index: number;
   } | null>(null);
   const [editText, setEditText] = useState('');
+  const [dragging, setDragging] = useState(false);
 
   const editInputRef = useRef<HTMLInputElement>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
@@ -79,6 +80,7 @@ function WordEditor({
 
   const handleWordClick = useCallback(
     (captionId: string, wordIndex: number, word: CaptionWord) => {
+      if (dragging) return;
       setSelectedCaptionId(captionId);
       setSelectedWordIndex(wordIndex);
 
@@ -86,7 +88,7 @@ function WordEditor({
         onSeek(word.startMs);
       }
     },
-    [onSeek]
+    [onSeek, dragging]
   );
 
   const handleWordDoubleClick = useCallback(
@@ -325,7 +327,6 @@ function WordEditor({
                     className={`${styles.iconButton} ${styles.iconButtonDanger}`}
                     onClick={() => onDeleteCaption(caption.id)}
                     title="자막 삭제"
-                    disabled={captions.length === 1}
                   >
                     ✖
                   </button>
@@ -421,8 +422,8 @@ function WordEditor({
                   const width =
                     ((word.endMs - word.startMs) / captionDuration) * 100;
 
-                  const startDrag = (e: React.MouseEvent) => {
-                    e.preventDefault();
+                  const startDrag = () => {
+                    setDragging(true);
                     const rect = timelineRef.current!.getBoundingClientRect();
                     draggingRef.current = {
                       captionId: caption.id,
@@ -473,6 +474,7 @@ function WordEditor({
 
                     const onUp = () => {
                       draggingRef.current = null;
+                      setDragging(false);
                       window.removeEventListener('mousemove', onMove);
                       window.removeEventListener('mouseup', onUp);
                     };
@@ -490,13 +492,16 @@ function WordEditor({
                         width: `${Math.max(width, 2)}%`,
                       }}
                       title={word.text}
+                      onMouseDown={
+                        idx < words.length - 1 ? startDrag : undefined
+                      }
                     >
                       {width > 8 ? word.text : ''}
 
                       {idx < words.length - 1 && (
                         <div
                           className={`${styles.resizeHandle} ${styles.resizeHandleRight}`}
-                          onMouseDown={startDrag}
+                          onMouseDown={() => startDrag()}
                           role="separator"
                           aria-orientation="vertical"
                           aria-label="Resize word boundary"

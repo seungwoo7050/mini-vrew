@@ -42,8 +42,8 @@ export function splitCaptionNext(
   if (headWords.length === 0 || tailWords.length === 0) return null;
 
   const splitMs = tailWords[0].startMs;
-  const firstEnd = Math.max(splitMs, caption.startMs + 10);
-  const secondStart = splitMs;
+  const firstEnd = splitMs;
+  const secondStart = splitMs + 1;
   const secondEnd = Math.max(secondStart + 10, caption.endMs);
 
   const firstCaption: Caption = {

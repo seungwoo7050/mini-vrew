@@ -9,13 +9,6 @@ import { formatTimecode, parseTimecode } from './time';
 import WordEditor from './WordEditor';
 import { applySplitCaption, applyMergeCaption } from './captionOps';
 
-const EMPTY_CAPTION: Caption = {
-  id: 'cap_new',
-  startMs: 0,
-  endMs: 2000,
-  text: '',
-};
-
 function getPlaybackTimeMs(): number | null {
   if (typeof document === 'undefined') return null;
   const videoEl = document.querySelector('video');
@@ -31,16 +24,23 @@ function nextId(prefix = 'cap'): string {
   return `${prefix}_${id}`;
 }
 
-function sanitizeCaptions(captions: Caption[]): Caption[] {
-  return sortCaptions(
-    captions
-      .filter((caption) => caption.text.trim().length > 0)
-      .map((caption) => {
-        const start = Math.max(0, caption.startMs);
-        const end = Math.max(start + 2000, caption.endMs);
-        return { ...caption, startMs: start, endMs: end };
-      })
-  );
+function sanitizeCaptions(
+  captions: Caption[],
+  minDurationMs: number
+): Caption[] {
+  const filtered = captions.filter((caption) => caption.text.trim().length > 0);
+  const mapped = filtered.map((caption) => {
+    const start = Math.max(0, caption.startMs);
+    const end = Math.max(start + minDurationMs, caption.endMs);
+    return { ...caption, startMs: start, endMs: end };
+  });
+  const sorted = sortCaptions(mapped);
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].endMs >= sorted[i + 1].startMs) {
+      sorted[i].endMs = sorted[i + 1].startMs - 1;
+    }
+  }
+  return sorted;
 }
 
 type Props = {
@@ -51,7 +51,15 @@ type Props = {
 };
 
 function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
-  const [drafts, setDrafts] = useState<Caption[]>([EMPTY_CAPTION]);
+  const [defaultDurationMs, setDefaultDurationMs] = useState(2000);
+  const [drafts, setDrafts] = useState<Caption[]>([
+    {
+      id: 'cap_new',
+      startMs: 0,
+      endMs: 2000,
+      text: '',
+    },
+  ]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isWordEditorMode, setIsWordEditorMode] = useState(false);
@@ -65,13 +73,51 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
   const { data, isPending, isError } = captionsQuery;
   const saveMutation = useSaveCaptionsMutation(videoId);
   const saving = saveMutation.isPending;
+  const canUseWordEditor = (data?.length ?? 0) > 0;
+
+  const [rawDuration, setRawDuration] = useState<string | undefined>(undefined);
+
+  const formattedDuration = formatTimecode(defaultDurationMs);
+
+  const decreaseDuration = () => {
+    setDefaultDurationMs((prev) => Math.max(100, prev - 100));
+  };
+
+  const increaseDuration = () => {
+    setDefaultDurationMs((prev) => prev + 100);
+  };
 
   useEffect(() => {
     if (data) {
-      const populated = data.length ? data : [EMPTY_CAPTION];
+      const populated = data.length
+        ? data
+        : [
+            {
+              id: 'cap_new',
+              startMs: 0,
+              endMs: defaultDurationMs,
+              text: '',
+            },
+          ];
       setDrafts(populated.map((caption) => ({ ...caption })));
     }
   }, [data]);
+
+  useEffect(() => {
+    if (!canUseWordEditor && isWordEditorMode) {
+      setIsWordEditorMode(false);
+    }
+  }, [canUseWordEditor, isWordEditorMode]);
+
+  useEffect(() => {
+    setDrafts((prev) =>
+      prev.map((caption) =>
+        caption.text.trim() === ''
+          ? { ...caption, endMs: defaultDurationMs }
+          : caption
+      )
+    );
+  }, [defaultDurationMs]);
 
   useEffect(() => {
     if (focusTextareaId) {
@@ -102,7 +148,7 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
           ...caption,
           [field]: parsed,
           ...(field === 'startMs' && caption.startMs === 0
-            ? { endMs: parsed + 2000 }
+            ? { endMs: parsed + defaultDurationMs }
             : {}),
         };
       })
@@ -246,15 +292,27 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
       : last
         ? last.endMs + 100
         : 0;
-    const endMs = startMs + 2000;
+    const endMs = startMs + defaultDurationMs;
     const id = nextId();
-    setDrafts([...drafts, { ...EMPTY_CAPTION, id, startMs, endMs }]);
+    setDrafts([...drafts, { id, startMs, endMs, text: '' }]);
     return id;
   };
 
   const handleDelete = (id: string) => {
     setDrafts((prev) => {
-      if (prev.length === 1) return prev;
+      if (prev.length === 1) {
+        return prev.map((caption) =>
+          caption.id === id
+            ? {
+                ...caption,
+                startMs: 0,
+                endMs: defaultDurationMs,
+                text: '',
+                words: undefined,
+              }
+            : caption
+        );
+      }
       return prev.filter((cap) => cap.id !== id);
     });
   };
@@ -286,7 +344,7 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
   };
 
   const handleExport = () => {
-    const safe = sanitizeCaptions(drafts);
+    const safe = sanitizeCaptions(drafts, defaultDurationMs);
     setDrafts(safe);
     if (!safe.length) {
       setError('내보낼 자막이 없습니다.');
@@ -305,7 +363,14 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
   const handleSave = async () => {
     setMessage(null);
     setError(null);
-    const prepared = sanitizeCaptions(drafts);
+    const prepared = sanitizeCaptions(drafts, defaultDurationMs);
+    const ordered = sortCaptions(prepared);
+    for (let i = 1; i < ordered.length; i += 1) {
+      if (ordered[i].startMs < ordered[i - 1].endMs) {
+        setError('자막 시간이 겹칩니다. 겹치는 구간을 조정해주세요.');
+        return;
+      }
+    }
     setDrafts(prepared);
     try {
       await saveMutation.mutateAsync(prepared);
@@ -320,7 +385,14 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
     setDrafts(
       data && data.length
         ? data.map((caption) => ({ ...caption }))
-        : [EMPTY_CAPTION]
+        : [
+            {
+              id: 'cap_new',
+              startMs: 0,
+              endMs: defaultDurationMs,
+              text: '',
+            },
+          ]
     );
     setMessage(null);
     setError(null);
@@ -359,7 +431,21 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
           <button
             className={styles.button}
             type="button"
-            onClick={() => setIsWordEditorMode(!isWordEditorMode)}
+            onClick={() => {
+              if (!canUseWordEditor) {
+                setError(
+                  '자막을 저장한 뒤에 단어 편집기를 사용할 수 있습니다.'
+                );
+                return;
+              }
+              setIsWordEditorMode(!isWordEditorMode);
+            }}
+            disabled={!canUseWordEditor}
+            title={
+              canUseWordEditor
+                ? '단어 편집기 열기'
+                : '자막을 저장한 뒤에 사용할 수 있습니다.'
+            }
           >
             {isWordEditorMode ? '기본 편집기로 전환' : '단어 편집기로 전환'}
           </button>
@@ -404,6 +490,43 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
             되돌리기
           </button>
         </div>
+        <label className={styles.durationControl}>
+          <span>기본 자막 길이(초)</span>
+          <div className={styles.durationInputGroup}>
+            <input
+              className={styles.durationInput}
+              type="text"
+              value={rawDuration ?? formattedDuration}
+              onChange={(event) => setRawDuration(event.target.value)}
+              onBlur={() => {
+                const trimmed = rawDuration?.trim();
+                if (trimmed && trimmed !== '') {
+                  const parsed = parseTimecode(trimmed);
+                  if (parsed !== null) {
+                    setDefaultDurationMs(parsed);
+                    setRawDuration(undefined);
+                  }
+                  // 실패 시 유지
+                }
+                // 빈 칸 시 유지
+              }}
+            />
+            <button
+              className={styles.durationButton}
+              type="button"
+              onClick={increaseDuration}
+            >
+              +
+            </button>
+            <button
+              className={styles.durationButton}
+              type="button"
+              onClick={decreaseDuration}
+            >
+              -
+            </button>
+          </div>
+        </label>
         <input
           ref={fileInputRef}
           type="file"
@@ -417,7 +540,7 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
         시간은 HH:MM:SS,mmm 또는 HH:MM:SS.mmm 형식을 지원합니다.
       </p>
 
-      {isWordEditorMode ? (
+      {isWordEditorMode && canUseWordEditor ? (
         <WordEditor
           captions={drafts}
           currentTimeMs={currentTimeMs}
