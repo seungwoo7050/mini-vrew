@@ -45,6 +45,20 @@ export function usePlaybackController({
   const loopEnabledRef = useRef(true);
   const seekGuardsEnabledRef = useRef(true);
 
+  const updateCurrentTimeMs = useCallback(
+    (el: HTMLVideoElement, quantize = true) => {
+      const t = el.currentTime;
+      if (!Number.isFinite(t)) return;
+
+      const ms = Math.round(t * 1000);
+      const next = quantize
+        ? Math.round(ms / PLAYHEAD_STEP_MS) * PLAYHEAD_STEP_MS
+        : ms;
+      setCurrentTimeMs((prev) => (prev !== next ? next : prev));
+    },
+    []
+  );
+
   const stopPlayheadTick = useCallback(() => {
     if (playheadRafIdRef.current !== null) {
       cancelAnimationFrame(playheadRafIdRef.current);
@@ -76,9 +90,7 @@ export function usePlaybackController({
             }
           }
 
-          const quantized =
-            Math.round(ms / PLAYHEAD_STEP_MS) * PLAYHEAD_STEP_MS;
-          setCurrentTimeMs((prev) => (prev !== quantized ? quantized : prev));
+          updateCurrentTimeMs(el, true);
         }
 
         playheadRafIdRef.current = requestAnimationFrame(tick);
@@ -138,10 +150,28 @@ export function usePlaybackController({
         stopPlayheadTick();
       };
 
+      const handleTimeUpdate = () => {
+        if (!el.paused) return;
+        updateCurrentTimeMs(el, false);
+      };
+
+      const handleSeeking = () => {
+        if (!el.paused) return;
+        updateCurrentTimeMs(el, false);
+      };
+
+      const handleSeeked = () => {
+        if (!el.paused) return;
+        updateCurrentTimeMs(el, false);
+      };
+
       el.addEventListener('loadedmetadata', handleLoadedMetadata);
       el.addEventListener('play', handlePlay);
       el.addEventListener('pause', handlePause);
       el.addEventListener('ended', handleEnded);
+      el.addEventListener('timeupdate', handleTimeUpdate);
+      el.addEventListener('seeking', handleSeeking);
+      el.addEventListener('seeked', handleSeeked);
 
       if (el.readyState >= 1) {
         handleLoadedMetadata();
@@ -152,9 +182,12 @@ export function usePlaybackController({
         el.removeEventListener('play', handlePlay);
         el.removeEventListener('pause', handlePause);
         el.removeEventListener('ended', handleEnded);
+        el.removeEventListener('timeupdate', handleTimeUpdate);
+        el.removeEventListener('seeking', handleSeeking);
+        el.removeEventListener('seeked', handleSeeked);
       };
     },
-    [onLoadedMetadata, startPlayheadTick, stopPlayheadTick]
+    [onLoadedMetadata, startPlayheadTick, stopPlayheadTick, updateCurrentTimeMs]
   );
 
   const play = useCallback(() => {
