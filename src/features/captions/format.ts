@@ -1,4 +1,5 @@
-import type { Caption } from '@/data/types';
+import type { Caption, CaptionId } from '@/data/types';
+import { createCaptionId } from '@/data/types';
 import { formatTimecode, parseTimecode } from './time';
 
 export function sortCaptions(captions: Caption[]): Caption[] {
@@ -11,8 +12,8 @@ function normalizeText(value: string): string {
   return value.replace(/\r\n?/g, '\n').trimEnd();
 }
 
-function makeId(index: number): string {
-  return `cap_${String(index).padStart(4, '0')}`;
+function makeId(index: number): CaptionId {
+  return createCaptionId(`cap_${String(index).padStart(4, '0')}`);
 }
 
 export function parseCaptions(text: string): Caption[] {

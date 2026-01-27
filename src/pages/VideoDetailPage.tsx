@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useVideoBlobQuery, useVideoQuery } from '@/features/videos/queries';
+import { createVideoId } from '@/data/types';
 import CaptionsPanel from '@/features/captions/CaptionsPanel';
 import SubtitleOverlay from '@/features/captions/SubtitleOverlay';
 import { useCaptionsQuery } from '@/features/captions/queries';
@@ -24,7 +25,7 @@ import styles from './VideoDetailPage.module.css';
 
 function VideoDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const videoId = id ?? '';
+  const videoId = createVideoId(id ?? '');
   const navigate = useNavigate();
 
   const { data: video, isPending, isError } = useVideoQuery(videoId);

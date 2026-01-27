@@ -1,7 +1,11 @@
 export type ApiMode = 'local' | 'http';
 
-export type VideoId = string;
-export type CaptionId = string;
+type Brand<T, B> = T & { __brand: B };
+export type VideoId = Brand<string, 'VideoId'>;
+export type CaptionId = Brand<string, 'CaptionId'>;
+
+export const createVideoId = (id: string): VideoId => id as VideoId;
+export const createCaptionId = (id: string): CaptionId => id as CaptionId;
 
 export type Video = {
   id: VideoId;

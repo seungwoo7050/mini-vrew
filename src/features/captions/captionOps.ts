@@ -1,8 +1,11 @@
-import type { Caption } from '@/data/types';
+import type { Caption, CaptionId } from '@/data/types';
+import { createCaptionId } from '@/data/types';
 import { computeFallbackWordTimings } from './wordHighlight';
 
-export function makeCaptionId(): string {
-  return `cap_${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`;
+export function makeCaptionId(): CaptionId {
+  return createCaptionId(
+    `cap_${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`
+  );
 }
 
 export function splitCaptionNewline(

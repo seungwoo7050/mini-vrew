@@ -7,6 +7,7 @@ import type {
   VideoId,
   VideoMetadataPatch,
 } from './types';
+import { createVideoId } from './types';
 import { deleteCaptions, getCaptions, saveCaptions } from '@/lib/captionStore';
 import {
   deleteThumbnailBlob,
@@ -28,7 +29,7 @@ function generateVideoId(prefix = 'local'): VideoId {
     typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : Date.now().toString(36);
-  return `${prefix}_${id}`;
+  return createVideoId(`${prefix}_${id}`);
 }
 
 async function ensureSeeded(): Promise<void> {

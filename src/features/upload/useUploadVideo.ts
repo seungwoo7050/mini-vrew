@@ -7,7 +7,7 @@ import {
   videoKey,
   videosKey,
 } from '@/data/queryKeys';
-import type { CreateVideoInput } from '@/data/types';
+import type { CreateVideoInput, VideoId } from '@/data/types';
 import { createThumbnailForUpload } from './uploadService';
 
 export type UploadPayload = {
@@ -19,7 +19,7 @@ export type UploadPayload = {
 };
 
 type Created = {
-  videoId: string;
+  videoId: VideoId;
   title: string;
 };
 

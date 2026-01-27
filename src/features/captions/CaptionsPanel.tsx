@@ -2,26 +2,23 @@ import type { ChangeEvent, KeyboardEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Caption, VideoId } from '@/data/types';
+import { createCaptionId } from '@/data/types';
 import { parseCaptions, sortCaptions, toSrt } from './format';
 import { useCaptionsQuery, useSaveCaptionsMutation } from './queries';
 import styles from './CaptionsPanel.module.css';
 import { formatTimecode, parseTimecode } from './time';
 import WordEditor from './WordEditor';
-import { applySplitCaption, applyMergeCaption } from './captionOps';
+import {
+  applySplitCaption,
+  applyMergeCaption,
+  makeCaptionId,
+} from './captionOps';
 
 function getPlaybackTimeMs(): number | null {
   if (typeof document === 'undefined') return null;
   const videoEl = document.querySelector('video');
   if (!videoEl || !Number.isFinite(videoEl.currentTime)) return null;
   return Math.round(videoEl.currentTime * 1000);
-}
-
-function nextId(prefix = 'cap'): string {
-  const id =
-    typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : Date.now().toString(36);
-  return `${prefix}_${id}`;
 }
 
 function sanitizeCaptions(
@@ -54,7 +51,7 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
   const [defaultDurationMs, setDefaultDurationMs] = useState(2000);
   const [drafts, setDrafts] = useState<Caption[]>([
     {
-      id: 'cap_new',
+      id: createCaptionId('cap_new'),
       startMs: 0,
       endMs: 2000,
       text: '',
@@ -93,7 +90,7 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
         ? data
         : [
             {
-              id: 'cap_new',
+              id: createCaptionId('cap_new'),
               startMs: 0,
               endMs: defaultDurationMs,
               text: '',
@@ -293,7 +290,7 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
         ? last.endMs + 100
         : 0;
     const endMs = startMs + defaultDurationMs;
-    const id = nextId();
+    const id = makeCaptionId();
     setDrafts([...drafts, { id, startMs, endMs, text: '' }]);
     return id;
   };
@@ -335,7 +332,9 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
           '유효한 자막을 찾지 못했습니다. 올바른 형식인지 확인해주세요.'
         );
       } else {
-        setDrafts(parsed.map((caption) => ({ ...caption, id: nextId() })));
+        setDrafts(
+          parsed.map((caption) => ({ ...caption, id: makeCaptionId() }))
+        );
         setMessage(`자막 ${parsed.length}개를 불러왔습니다.`);
       }
     };
@@ -387,7 +386,7 @@ function CaptionsPanel({ videoId, videoTitle, currentTimeMs, onSeek }: Props) {
         ? data.map((caption) => ({ ...caption }))
         : [
             {
-              id: 'cap_new',
+              id: createCaptionId('cap_new'),
               startMs: 0,
               endMs: defaultDurationMs,
               text: '',

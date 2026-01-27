@@ -6,10 +6,21 @@ import {
   applyMergeCaption,
 } from '@/features/captions/captionOps';
 import type { Caption } from '@/data/types';
+import { createCaptionId } from '@/data/types';
 
 const sampleCaptions: Caption[] = [
-  { id: 'c1', startMs: 0, endMs: 4000, text: 'Hello world this is a test' },
-  { id: 'c2', startMs: 4000, endMs: 8000, text: 'Another caption for preview' },
+  {
+    id: createCaptionId('c1'),
+    startMs: 0,
+    endMs: 4000,
+    text: 'Hello world this is a test',
+  },
+  {
+    id: createCaptionId('c2'),
+    startMs: 4000,
+    endMs: 8000,
+    text: 'Another caption for preview',
+  },
 ];
 
 export default function DevWordEditorPage() {

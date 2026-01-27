@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { useVideosQuery } from '@/features/videos/queries';
 import { useThumbnailBlobQuery } from '@/features/thumbnails/queries';
 import { useDeleteVideoMutation } from '@/features/videos/mutations';
+import { type VideoId } from '@/data/types';
 import styles from './VideosPage.module.css';
 
-function Thumbnail({ videoId, title }: { videoId: string; title: string }) {
+function Thumbnail({ videoId, title }: { videoId: VideoId; title: string }) {
   const { data: blob } = useThumbnailBlobQuery(videoId);
 
   const url = useMemo(() => {
