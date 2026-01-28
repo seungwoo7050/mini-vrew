@@ -90,6 +90,24 @@
   box-sizing: border-box;
 }
 
+.filePicker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
 .submit {
   align-self: flex-end;
   padding: 10px 18px;

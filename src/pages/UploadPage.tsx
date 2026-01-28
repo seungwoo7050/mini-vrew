@@ -146,16 +146,29 @@ function UploadPage() {
               />
             </label>
 
-            <label className={styles.label}>
+            <label className={styles.label} htmlFor="video-file">
               비디오 파일
+            </label>
+            <div className={styles.filePicker}>
               <input
-                className={styles.input}
+                id="video-file"
+                className={styles.fileInput}
                 type="file"
                 accept="video/*"
                 onChange={handleFileChange}
                 disabled={isPending}
               />
-            </label>
+              <label
+                htmlFor="video-file"
+                className={`${styles.button} ${isPending ? styles.buttonDisabled : ''}`}
+                aria-disabled={isPending}
+              >
+                파일 선택
+              </label>
+              <span className={styles.fileName}>
+                {file ? file.name : '선택된 파일 없음'}
+              </span>
+            </div>
 
             <div className={styles.hint}>
               안정적인 업로드를 위해 500MB 이하의 파일을 권장합니다.
