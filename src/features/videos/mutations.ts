@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { createAppApi } from '@/data/createAppApi';
+import { appApi } from '@/data/createAppApi';
 import {
   captionsKey,
   thumbnailBlobKey,
@@ -9,8 +9,6 @@ import {
   videosKey,
 } from '@/data/queryKeys';
 import type { VideoId } from '@/data/types';
-
-const appApi = createAppApi();
 
 export function useDeleteVideoMutation() {
   const queryClient = useQueryClient();

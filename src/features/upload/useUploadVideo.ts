@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { createAppApi } from '@/data/createAppApi';
+import { appApi } from '@/data/createAppApi';
 import {
   thumbnailBlobKey,
   videoBlobKey,
@@ -28,7 +28,6 @@ async function createVideoWithAssets(payload: UploadPayload): Promise<Created> {
     title: payload.title.trim() || payload.file.name,
   };
 
-  const appApi = createAppApi();
   const video = await appApi.createVideo(input);
   await appApi.putVideoBlob(video.id, payload.file);
   const thumb = await createThumbnailForUpload(payload.file, {
