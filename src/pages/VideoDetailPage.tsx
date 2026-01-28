@@ -21,6 +21,7 @@ import {
 } from '@/features/waveform/trimRecommendations';
 import { useFilterState, useWebGLPreview } from '@/features/filters';
 import { useVideoExport } from '@/features/export';
+import ThumbnailPreview from '@/components/ThumbnailPreview';
 import styles from './VideoDetailPage.module.css';
 
 function VideoDetailPage() {
@@ -918,17 +919,12 @@ function VideoDetailPage() {
                 </button>
               </div>
               {!isThumbnailCollapsed && (
-                <div className={styles.thumbWrapper} aria-label="썸네일">
-                  {thumbnailUrl ? (
-                    <img
-                      className={styles.thumbImage}
-                      src={thumbnailUrl}
-                      alt={`${video.title} 썸네일`}
-                    />
-                  ) : (
-                    <div className={styles.thumbFallback}>썸네일 없음</div>
-                  )}
-                </div>
+                <ThumbnailPreview
+                  className={styles.thumbImage}
+                  src={thumbnailUrl}
+                  alt={`${video.title} 썸네일`}
+                  emptyLabel="썸네일 없음"
+                />
               )}
             </div>
           </div>

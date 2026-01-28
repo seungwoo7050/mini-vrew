@@ -4,9 +4,16 @@ import { useVideosQuery } from '@/features/videos/queries';
 import { useThumbnailBlobQuery } from '@/features/thumbnails/queries';
 import { useDeleteVideoMutation } from '@/features/videos/mutations';
 import { type VideoId } from '@/data/types';
+import ThumbnailPreview from '@/components/ThumbnailPreview';
 import styles from './VideosPage.module.css';
 
-function Thumbnail({ videoId, title }: { videoId: VideoId; title: string }) {
+function VideoThumbnailPreview({
+  videoId,
+  title,
+}: {
+  videoId: VideoId;
+  title: string;
+}) {
   const { data: blob } = useThumbnailBlobQuery(videoId);
 
   const url = useMemo(() => {
@@ -21,13 +28,12 @@ function Thumbnail({ videoId, title }: { videoId: VideoId; title: string }) {
   }, [url]);
 
   return (
-    <div className={styles.thumbWrapper} aria-label="썸네일">
-      {url ? (
-        <img className={styles.thumbImage} src={url} alt={`${title} 썸네일`} />
-      ) : (
-        <div className={styles.thumbFallback}>썸네일 없음</div>
-      )}
-    </div>
+    <ThumbnailPreview
+      className={styles.thumbWrapper}
+      src={url}
+      alt={`${title} 썸네일`}
+      emptyLabel="썸네일 없음"
+    />
   );
 }
 
@@ -106,7 +112,7 @@ function VideosPage() {
               className={styles.cardLink}
             >
               <article className={styles.card}>
-                <Thumbnail videoId={video.id} title={video.title} />
+                <VideoThumbnailPreview videoId={video.id} title={video.title} />
                 <p className={styles.placeholder}>
                   생성: {new Date(video.createdAt).toLocaleString('ko-KR')}
                 </p>

@@ -260,15 +260,13 @@
 }
 
 .thumbnailPreview {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: 12px;
-  border: 2px solid transparent;
+  --thumbnail-bg: #f8fafc;
+  --thumbnail-border: 2px solid transparent;
+  --thumbnail-radius: 12px;
 }
 
-.thumbnailOption input:checked + img {
-  border-color: var(--primary);
+.thumbnailOption input:checked ~ .thumbnailPreview {
+  --thumbnail-border: 2px solid var(--primary);
 }
 
 .qualityControl {

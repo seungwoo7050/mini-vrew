@@ -195,15 +195,9 @@
 }
 
 .thumbWrapper {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(226, 232, 240, 0.08);
-  border-radius: 14px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  --thumbnail-bg: rgba(15, 23, 42, 0.4);
+  --thumbnail-border: 1px solid rgba(226, 232, 240, 0.08);
+  --thumbnail-radius: 14px;
 }
 
 .thumbImage {

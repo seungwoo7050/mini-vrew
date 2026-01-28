@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useUploadVideo } from '@/features/upload/useUploadVideo';
+import ThumbnailPreview from '@/components/ThumbnailPreview';
 
 import styles from './UploadPage.module.css';
 import { createThumbnailForUpload } from '@/features/upload/uploadService';
@@ -82,6 +83,17 @@ function UploadPage() {
       console.error('[Upload error]:', e);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (thumbnails.jpeg) {
+        URL.revokeObjectURL(thumbnails.jpeg);
+      }
+      if (thumbnails.png) {
+        URL.revokeObjectURL(thumbnails.png);
+      }
+    };
+  }, [thumbnails.jpeg, thumbnails.png]);
 
   useEffect(() => {
     if (isSuccess && data?.videoId) {
@@ -208,10 +220,11 @@ function UploadPage() {
                       onChange={() => setThumbChoice('jpeg')}
                       disabled={isPending}
                     />
-                    JPEG
-                    <img
+                    <span>JPEG</span>
+                    <ThumbnailPreview
                       src={thumbnails.jpeg}
                       alt="JPEG 썸네일"
+                      emptyLabel="미리보기 없음"
                       className={styles.thumbnailPreview}
                     />
                   </label>
@@ -223,10 +236,11 @@ function UploadPage() {
                       onChange={() => setThumbChoice('png')}
                       disabled={isPending}
                     />
-                    PNG
-                    <img
+                    <span>PNG</span>
+                    <ThumbnailPreview
                       src={thumbnails.png}
                       alt="PNG 썸네일"
+                      emptyLabel="미리보기 없음"
                       className={styles.thumbnailPreview}
                     />
                   </label>
